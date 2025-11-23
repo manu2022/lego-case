@@ -34,7 +34,23 @@ This repository uses GitHub Actions for automated deployment with **separate pip
 
 ## ⚙️ Setup Instructions
 
-### Step 1: Configure GitHub Secrets
+### Step 1: Setup Terraform Remote Backend
+
+**Why?** Terraform state files can be large (100MB+) and should never be in Git. We use Azure Storage for remote state.
+
+```bash
+cd terraform
+./setup-backend.sh
+```
+
+This creates:
+- Azure Storage Account for Terraform state
+- Blob container with versioning enabled
+- Backend configuration file
+
+**Save the output values** - you'll need them for GitHub Secrets.
+
+### Step 2: Configure GitHub Secrets
 
 Go to your repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
@@ -42,13 +58,25 @@ Add the following secrets:
 
 | Secret Name | Description | How to get it |
 |-------------|-------------|---------------|
-| `AZURE_CREDENTIALS` | Service Principal credentials | See below |
+| `AZURE_CREDENTIALS` | Service Principal credentials | See Step 3 below |
 | `OPENAI_API_KEY` | Azure OpenAI API key | From your `.env` file |
 | `LANGFUSE_SECRET_KEY` | Langfuse secret key | From your `.env` file |
 | `LANGFUSE_PUBLIC_KEY` | Langfuse public key | From your `.env` file |
 | `LANGFUSE_BASE_URL` | Langfuse URL | `http://langfuse.legocase.com` |
+| `TF_BACKEND_RESOURCE_GROUP` | Terraform backend RG | From `setup-backend.sh` output |
+| `TF_BACKEND_STORAGE_ACCOUNT` | Terraform backend storage | From `setup-backend.sh` output |
+| `TF_BACKEND_CONTAINER` | Terraform backend container | `tfstate` |
+| `TF_BACKEND_STORAGE_KEY` | Storage account access key | See command below |
 
-### Step 2: Create Azure Service Principal
+**Get the storage key:**
+```bash
+az storage account keys list \
+  --resource-group <TF_BACKEND_RESOURCE_GROUP> \
+  --account-name <TF_BACKEND_STORAGE_ACCOUNT> \
+  --query '[0].value' -o tsv
+```
+
+### Step 3: Create Azure Service Principal
 
 Run this command to create a service principal with the correct permissions:
 
@@ -66,7 +94,23 @@ az ad sp create-for-rbac \
 
 Copy the entire JSON output and save it as the `AZURE_CREDENTIALS` secret in GitHub.
 
-### Step 3: Create GitHub Environment (for Terraform approval)
+### Step 4: Migrate Local State to Remote Backend (First Time Only)
+
+If you already have a local `terraform.tfstate` file:
+
+```bash
+cd terraform
+
+# Initialize with backend configuration
+terraform init -migrate-state -backend-config=backend-config.tfbackend
+
+# Verify state is now remote
+terraform state list
+```
+
+The local `.tfstate` files are now safe to delete (they're backed up in Azure with versioning).
+
+### Step 5: Create GitHub Environment (for Terraform approval)
 
 1. Go to **Settings** → **Environments** → **New environment**
 2. Name it: `production`

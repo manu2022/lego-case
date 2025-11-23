@@ -108,14 +108,28 @@ curl -X POST http://localhost:8000/ask \
 
 ### Infrastructure Setup (One-time)
 
+#### 1. Setup Remote Backend (Recommended)
+
 ```bash
 cd terraform
 
+# Create Azure Storage for Terraform state
+./setup-backend.sh
+
+# This creates storage and outputs configuration
+# Save the values for later use
+```
+
+**Why?** Terraform state files can be 100MB+ and should never be in Git. See [Backend Guide](terraform/BACKEND.md).
+
+#### 2. Configure and Apply Infrastructure
+
+```bash
 # Create terraform.tfvars from .env
 ./setup-vars.sh
 
-# Initialize Terraform
-terraform init
+# Initialize Terraform with remote backend
+terraform init -backend-config=backend-config.tfbackend
 
 # Preview changes
 terraform plan

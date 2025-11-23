@@ -8,6 +8,7 @@
 .terraformrc
 terraform.rc
 *.tfplan
+backend-config.tfbackend
 
 # Python
 __pycache__/

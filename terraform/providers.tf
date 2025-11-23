@@ -11,6 +11,13 @@ terraform {
       version = "~>3.0"
     }
   }
+
+  # Remote backend for state storage
+  # Run setup-backend.sh first to create the storage account
+  backend "azurerm" {
+    # Configuration loaded from backend-config.tfbackend
+    # Or set via environment variables or CLI flags
+  }
 }
 
 provider "azurerm" {
