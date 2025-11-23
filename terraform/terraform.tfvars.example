@@ -1,0 +1,8 @@
+resource_group_name = "rg-case"
+
+# Copy these from your .env file
+openai_api_key      = "your-openai-api-key-here"
+langfuse_secret_key = "your-langfuse-secret-key-here"
+langfuse_public_key = "your-langfuse-public-key-here"
+langfuse_base_url   = "http://langfuse.legocase.com"
+
