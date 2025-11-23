@@ -26,8 +26,8 @@ jobs:
       - name: Get Container Registry name
         id: acr
         run: |
-          cd terraform
-          REGISTRY_NAME=$(az acr list --query "[?tags.project=='lego-case'].name | [0]" -o tsv)
+          REGISTRY_NAME=$(az acr list --resource-group rg-case --query "[0].name" -o tsv)
+          echo "Found registry: $REGISTRY_NAME"
           echo "registry_name=$REGISTRY_NAME" >> $GITHUB_OUTPUT
         
       - name: Build and push to ACR
@@ -47,6 +47,7 @@ jobs:
           NEW_VERSION="$major.$minor.$patch"
           
           echo "Building version: $NEW_VERSION"
+          echo "Using registry: ${{ steps.acr.outputs.registry_name }}"
           
           # Build and push
           az acr build \
@@ -57,44 +58,66 @@ jobs:
           
           # Update version file for next build
           echo $NEW_VERSION > version.txt
+          echo "✅ Built and pushed version $NEW_VERSION"
           
       - name: Commit version update
         run: |
+          cd backend
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
-          git add backend/version.txt
-          git diff --staged --quiet || git commit -m "chore: bump version to $(cat backend/version.txt) [skip ci]"
-          git push
+          git add version.txt
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore: bump version to $(cat version.txt) [skip ci]"
+            git push
+          fi
 
-      - name: Deploy to Azure Container Apps
+      - name: Deploy to Azure Web App
         run: |
-          cd terraform
+          # Get Web App name
+          APP_NAME=$(az webapp list --resource-group rg-case --query "[0].name" -o tsv)
+          echo "Deploying to Web App: $APP_NAME"
           
-          # Get the Container App name
-          APP_NAME=$(terraform output -raw container_app_name)
-          RG_NAME=$(terraform output -raw resource_group_name)
-          
-          # Trigger revision with latest image
-          az containerapp update \
+          # Configure Web App to use latest image
+          az webapp config container set \
             --name $APP_NAME \
-            --resource-group $RG_NAME \
-            --image ${{ steps.acr.outputs.registry_name }}.azurecr.io/question-answer-api:latest
+            --resource-group rg-case \
+            --docker-custom-image-name ${{ steps.acr.outputs.registry_name }}.azurecr.io/question-answer-api:latest \
+            --docker-registry-server-url https://${{ steps.acr.outputs.registry_name }}.azurecr.io
+          
+          # Restart to pull new image
+          az webapp restart --name $APP_NAME --resource-group rg-case
+          
+          echo "✅ Deployment triggered for $APP_NAME"
 
       - name: Verify deployment
         run: |
-          cd terraform
-          APP_URL=$(terraform output -raw container_app_url)
+          # Get Web App URL
+          APP_URL=$(az webapp list --resource-group rg-case --query "[0].defaultHostName" -o tsv)
+          echo "Checking health at: https://${APP_URL}/health"
           
           # Wait for deployment
-          sleep 30
+          echo "Waiting 60 seconds for deployment..."
+          sleep 60
           
-          # Health check
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${APP_URL}/health)
+          # Health check with retries
+          MAX_RETRIES=5
+          RETRY_COUNT=0
           
-          if [ "$HTTP_CODE" == "200" ]; then
-            echo "✅ Deployment successful! Health check passed."
-          else
-            echo "❌ Deployment failed! Health check returned: $HTTP_CODE"
-            exit 1
-          fi
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${APP_URL}/health || echo "000")
+            
+            if [ "$HTTP_CODE" == "200" ]; then
+              echo "✅ Deployment successful! Health check passed."
+              exit 0
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              echo "⏳ Attempt $RETRY_COUNT/$MAX_RETRIES: Health check returned $HTTP_CODE, retrying in 10s..."
+              sleep 10
+            fi
+          done
+          
+          echo "❌ Deployment verification failed after $MAX_RETRIES attempts"
+          exit 1
 
