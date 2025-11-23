@@ -1,0 +1,65 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-*.yml'
+  
+  workflow_dispatch:
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://portal.azure.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create terraform.tfvars
+        working-directory: terraform
+        run: |
+          cat > terraform.tfvars << EOF
+          resource_group_name = "rg-case"
+          
+          openai_api_key      = "${{ secrets.OPENAI_API_KEY }}"
+          langfuse_secret_key = "${{ secrets.LANGFUSE_SECRET_KEY }}"
+          langfuse_public_key = "${{ secrets.LANGFUSE_PUBLIC_KEY }}"
+          langfuse_base_url   = "${{ secrets.LANGFUSE_BASE_URL }}"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Save Terraform Outputs
+        working-directory: terraform
+        run: |
+          echo "### Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform output >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+

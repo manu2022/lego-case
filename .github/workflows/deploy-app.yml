@@ -1,0 +1,100 @@
+name: Deploy Application
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-app.yml'
+
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get Container Registry name
+        id: acr
+        run: |
+          cd terraform
+          REGISTRY_NAME=$(az acr list --query "[?tags.project=='lego-case'].name | [0]" -o tsv)
+          echo "registry_name=$REGISTRY_NAME" >> $GITHUB_OUTPUT
+        
+      - name: Build and push to ACR
+        run: |
+          cd backend
+          
+          # Get current version
+          if [ -f version.txt ]; then
+            VERSION=$(cat version.txt)
+          else
+            VERSION="0.1.0"
+          fi
+          
+          # Increment patch version
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          patch=$((patch + 1))
+          NEW_VERSION="$major.$minor.$patch"
+          
+          echo "Building version: $NEW_VERSION"
+          
+          # Build and push
+          az acr build \
+            --registry ${{ steps.acr.outputs.registry_name }} \
+            --image question-answer-api:${NEW_VERSION} \
+            --image question-answer-api:latest \
+            .
+          
+          # Update version file for next build
+          echo $NEW_VERSION > version.txt
+          
+      - name: Commit version update
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add backend/version.txt
+          git diff --staged --quiet || git commit -m "chore: bump version to $(cat backend/version.txt) [skip ci]"
+          git push
+
+      - name: Deploy to Azure Container Apps
+        run: |
+          cd terraform
+          
+          # Get the Container App name
+          APP_NAME=$(terraform output -raw container_app_name)
+          RG_NAME=$(terraform output -raw resource_group_name)
+          
+          # Trigger revision with latest image
+          az containerapp update \
+            --name $APP_NAME \
+            --resource-group $RG_NAME \
+            --image ${{ steps.acr.outputs.registry_name }}.azurecr.io/question-answer-api:latest
+
+      - name: Verify deployment
+        run: |
+          cd terraform
+          APP_URL=$(terraform output -raw container_app_url)
+          
+          # Wait for deployment
+          sleep 30
+          
+          # Health check
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${APP_URL}/health)
+          
+          if [ "$HTTP_CODE" == "200" ]; then
+            echo "✅ Deployment successful! Health check passed."
+          else
+            echo "❌ Deployment failed! Health check returned: $HTTP_CODE"
+            exit 1
+          fi
+
