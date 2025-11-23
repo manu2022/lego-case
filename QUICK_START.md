@@ -70,7 +70,7 @@ Copy the JSON output → Add as `AZURE_CREDENTIALS`
 - `TF_BACKEND_STORAGE_KEY` - Run:
   ```bash
   az storage account keys list \
-    --resource-group <TF_BACKEND_RESOURCE_GROUP> \
+    --resource-group rg-case \
     --account-name <TF_BACKEND_STORAGE_ACCOUNT> \
     --query '[0].value' -o tsv
   ```

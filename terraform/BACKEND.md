@@ -28,7 +28,7 @@ chmod +x setup-backend.sh
 ```
 
 This creates:
-- **Resource Group**: `rg-terraform-state`
+- **Resource Group**: `rg-case` (uses existing resource group)
 - **Storage Account**: `tfstatelego<random>` (globally unique name)
 - **Blob Container**: `tfstate`
 - **Backend Config**: `backend-config.tfbackend` (contains connection details)
@@ -65,7 +65,7 @@ terraform state pull | head -n 10
 
 ### `backend-config.tfbackend`
 ```hcl
-resource_group_name  = "rg-terraform-state"
+resource_group_name  = "rg-case"
 storage_account_name = "tfstatelego12ab34cd"
 container_name       = "tfstate"
 key                  = "lego-case.tfstate"
@@ -247,7 +247,7 @@ az login
 
 # Verify you have access
 az storage account keys list \
-  --resource-group rg-terraform-state \
+  --resource-group rg-case \
   --account-name <storage-account-name>
 ```
 
