@@ -11,4 +11,7 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "fastapi>=0.115.0",
     "uvicorn>=0.32.0",
+    "ipykernel>=7.1.0",
+    "azure-core>=1.36.0",
+    "azure-ai-inference>=1.0.0b9",
 ]
