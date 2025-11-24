@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     langfuse_secret_key: str
     langfuse_public_key: str
     langfuse_base_url: str  # Must come from env - no default!
+    cors_origins: str = "*"  # Comma-separated list of allowed origins
 
 
 # Load settings with error handling

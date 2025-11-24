@@ -8,9 +8,17 @@ ENV_FILE="../.env"
 [ ! -f "$ENV_FILE" ] && echo "Error: .env file not found at $ENV_FILE" && exit 1
 
 # Export variables from .env (strip quotes and spaces)
-set -a
-source <(grep -v '^#' "$ENV_FILE" | sed -E 's/[[:space:]]*=[[:space:]]*/=/g' | sed 's/"//g' | sed "s/'//g")
-set +a
+while IFS= read -r line; do
+  # Skip comments and empty lines
+  [[ "$line" =~ ^[[:space:]]*# ]] && continue
+  [[ -z "$line" ]] && continue
+  
+  # Remove quotes and spaces around =
+  line=$(echo "$line" | sed -E 's/[[:space:]]*=[[:space:]]*/=/' | sed 's/"//g' | sed "s/'//g")
+  
+  # Export the variable
+  export "$line"
+done < "$ENV_FILE"
 
 # Set defaults
 LANGFUSE_BASE_URL=${LANGFUSE_BASE_URL:-http://langfuse.legocase.com}

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from langfuse.decorators import langfuse_context
 from config import settings
@@ -28,6 +29,19 @@ app = FastAPI(
     description="API for text and multimodal question answering",
     version="1.0.0",
     lifespan=lifespan
+)
+
+# Add CORS middleware
+# Parse CORS origins from settings (comma-separated string to list)
+cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+print(f"🔒 CORS enabled for origins: {cors_origins}")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers

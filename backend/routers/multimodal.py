@@ -44,10 +44,11 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
     # Create data URL from base64 image
     data_url = ImageUrl(url=f"data:image/{image_format};base64,{image_data}")
     
-    # Record start time
-    start_time = time.time()
-    
     print(f"🚀 Starting multimodal LLM call with question: {question[:50]}...")
+    
+    # Record start time with timestamp
+    from datetime import datetime
+    start_time = datetime.now()
     
     # Make the API call
     response = client.complete(
@@ -58,12 +59,11 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
                 ImageContentItem(image_url=data_url)
             ]),
         ],
-        temperature=0.7,
-        max_tokens=2048,
+ 
     )
     
-    # Calculate latency
-    latency = time.time() - start_time
+    # Record end time
+    end_time = datetime.now()
     
     answer = response.choices[0].message.content
     
@@ -74,21 +74,31 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
         "total": response.usage.total_tokens
     }
     
-    # Log to Langfuse
+    # Log to Langfuse with proper structure
     langfuse.generation(
         name="phi4_multimodal_completion",
         model="Phi-4-multimodal-instruct",
-        input={"question": question},
-        output=answer,
-        usage=usage,
-        metadata={
-            "temperature": 0.7,
-            "max_tokens": 2048,
-            "latency_seconds": latency
+        model_parameters={
+          #  "temperature": 0.7,
+           # "max_tokens": 2048
         },
+        input=[
+            {"role": "system", "content": "You are a helpful assistant that can analyze images and answer questions about them."},
+            {"role": "user", "content": question}
+        ],
+        output=answer,
+        usage={
+            "input": usage["input"],
+            "output": usage["output"],
+            "total": usage["total"],
+            "unit": "TOKENS"
+        },
+        start_time=start_time,
+        end_time=end_time,
         trace_id=trace.id
     )
     
+    latency = (end_time - start_time).total_seconds()
     print(f"✅ Multimodal LLM Response received")
     print(f"   Input tokens: {usage['input']}")
     print(f"   Output tokens: {usage['output']}")

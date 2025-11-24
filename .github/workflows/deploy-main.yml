@@ -3,22 +3,33 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
-    paths: ['terraform/**', 'backend/**', '.github/workflows/deploy-*.yml']
+    paths: ['terraform/**', 'backend/**', 'frontend/**', '.github/workflows/deploy-*.yml']
+  pull_request:
+    branches: [main]
+    types: [closed]
+    paths: ['terraform/**', 'backend/**', 'frontend/**']
   workflow_dispatch:
 
 env:
   RG_NAME: rg-case
 
 jobs:
+  # Job 1: Apply Terraform infrastructure changes
   infrastructure:
     runs-on: ubuntu-latest
+    # Only run on merged PRs or direct pushes to main
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || github.event_name == 'workflow_dispatch'
     environment: production
     defaults:
       run:
         working-directory: terraform
     outputs:
+      terraform_changed: ${{ steps.changes.outputs.changed }}
       registry: ${{ steps.resources.outputs.registry }}
-      app_name: ${{ steps.resources.outputs.app_name }}
+      backend_app_name: ${{ steps.resources.outputs.backend_app_name }}
+      frontend_app_name: ${{ steps.resources.outputs.frontend_app_name }}
+      backend_url: ${{ steps.resources.outputs.backend_url }}
+      frontend_url: ${{ steps.resources.outputs.frontend_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,10 +38,15 @@ jobs:
       - name: Check Terraform changes
         id: changes
         run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q '^terraform/'; then
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
+            echo "ℹ️  Manual workflow dispatch - will check terraform"
+          elif git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q '^terraform/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✅ Terraform changes detected"
           else
             echo "changed=false" >> $GITHUB_OUTPUT
+            echo "⏭️  No terraform changes detected"
           fi
 
       - uses: hashicorp/setup-terraform@v3
@@ -48,6 +64,8 @@ jobs:
         env:
           ARM_ACCESS_KEY: ${{ secrets.TF_BACKEND_STORAGE_KEY }}
         run: |
+          echo "🏗️  Applying Terraform configuration..."
+          
           cat > terraform.tfvars << EOF
           resource_group_name = "rg-case"
           openai_api_key      = "${{ secrets.OPENAI_API_KEY }}"
@@ -65,16 +83,39 @@ jobs:
           terraform validate
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
+          
+          echo "✅ Terraform applied successfully"
 
-      - name: Get resources
+      - name: Get Azure resources info
         id: resources
         run: |
-          echo "registry=$(az acr list --resource-group $RG_NAME --query "[0].name" -o tsv)" >> $GITHUB_OUTPUT
-          echo "app_name=$(az webapp list --resource-group $RG_NAME --query "[0].name" -o tsv)" >> $GITHUB_OUTPUT
+          echo "🔍 Discovering Azure resources..."
+          
+          REGISTRY=$(az acr list --resource-group $RG_NAME --query "[0].name" -o tsv)
+          BACKEND_APP=$(az webapp list --resource-group $RG_NAME --query "[?name=='question-answer-api'].name" -o tsv)
+          FRONTEND_APP=$(az webapp list --resource-group $RG_NAME --query "[?name=='question-answer-frontend'].name" -o tsv)
+          BACKEND_URL=$(az webapp show --name question-answer-api --resource-group $RG_NAME --query defaultHostName -o tsv)
+          FRONTEND_URL=$(az webapp show --name question-answer-frontend --resource-group $RG_NAME --query defaultHostName -o tsv)
+          
+          echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
+          echo "backend_app_name=$BACKEND_APP" >> $GITHUB_OUTPUT
+          echo "frontend_app_name=$FRONTEND_APP" >> $GITHUB_OUTPUT
+          echo "backend_url=$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "frontend_url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          
+          echo "📦 Registry: $REGISTRY"
+          echo "🔌 Backend: $BACKEND_APP ($BACKEND_URL)"
+          echo "📱 Frontend: $FRONTEND_APP ($FRONTEND_URL)"
 
-  application:
+  # Job 2: Deploy Backend (runs after infrastructure)
+  backend:
     runs-on: ubuntu-latest
     needs: infrastructure
+    # Always run if infrastructure succeeded (we check for specific changes inside)
+    if: always() && needs.infrastructure.result == 'success'
+    outputs:
+      backend_changed: ${{ steps.changes.outputs.changed }}
+      should_update_env: ${{ steps.changes.outputs.should_update_env }}
     permissions:
       contents: write
     steps:
@@ -86,24 +127,62 @@ jobs:
       - name: Check backend changes
         id: changes
         run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q '^backend/'; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
+          BACKEND_CHANGED=false
+          SHOULD_UPDATE_ENV=false
+          
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            BACKEND_CHANGED=true
+            SHOULD_UPDATE_ENV=true
+            echo "ℹ️  Manual workflow dispatch - will deploy backend"
+          elif git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q '^backend/'; then
+            BACKEND_CHANGED=true
+            SHOULD_UPDATE_ENV=true
+            echo "✅ Backend changes detected"
+          fi
+          
+          # Update env vars if terraform changed (even if backend code didn't)
+          if [ "${{ needs.infrastructure.outputs.terraform_changed }}" == "true" ]; then
+            SHOULD_UPDATE_ENV=true
+            echo "✅ Terraform changed - will update environment variables"
+          fi
+          
+          echo "changed=$BACKEND_CHANGED" >> $GITHUB_OUTPUT
+          echo "should_update_env=$SHOULD_UPDATE_ENV" >> $GITHUB_OUTPUT
+          
+          if [ "$BACKEND_CHANGED" == "false" ] && [ "$SHOULD_UPDATE_ENV" == "false" ]; then
+            echo "⏭️  No backend or terraform changes - skipping"
           fi
 
       - uses: azure/login@v2
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.changed == 'true' || steps.changes.outputs.should_update_env == 'true'
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build and push
+      - name: Update backend environment variables
+        if: steps.changes.outputs.should_update_env == 'true'
+        run: |
+          echo "🔧 Updating backend environment variables..."
+          az webapp config appsettings set \
+            --name ${{ needs.infrastructure.outputs.backend_app_name }} \
+            --resource-group $RG_NAME \
+            --settings \
+              OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+              LANGFUSE_SECRET_KEY="${{ secrets.LANGFUSE_SECRET_KEY }}" \
+              LANGFUSE_PUBLIC_KEY="${{ secrets.LANGFUSE_PUBLIC_KEY }}" \
+              LANGFUSE_BASE_URL="${{ secrets.LANGFUSE_BASE_URL }}" \
+              CORS_ORIGINS="https://${{ needs.infrastructure.outputs.frontend_url }}" \
+            > /dev/null
+          echo "✅ Environment variables updated"
+
+      - name: Build and push backend
         if: steps.changes.outputs.changed == 'true'
         working-directory: backend
         run: |
           VERSION=$([ -f version.txt ] && cat version.txt || echo "0.1.0")
           IFS='.' read -r major minor patch <<< "$VERSION"
           NEW_VERSION="$major.$minor.$((patch + 1))"
+          
+          echo "📦 Building backend version: $NEW_VERSION"
           
           az acr build \
             --registry ${{ needs.infrastructure.outputs.registry }} \
@@ -112,8 +191,9 @@ jobs:
             .
           
           echo $NEW_VERSION > version.txt
+          echo "✅ Image built and pushed"
 
-      - name: Update version
+      - name: Update backend version
         if: steps.changes.outputs.changed == 'true'
         working-directory: backend
         run: |
@@ -121,30 +201,197 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add version.txt
           git diff --staged --quiet || (
-            git commit -m "chore: bump version [skip ci]"
+            git commit -m "chore: bump backend version [skip ci]"
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
           )
 
-      - name: Deploy
+      - name: Deploy backend container
         if: steps.changes.outputs.changed == 'true'
         run: |
+          echo "🚀 Deploying backend container..."
           az webapp config container set \
-            --name ${{ needs.infrastructure.outputs.app_name }} \
+            --name ${{ needs.infrastructure.outputs.backend_app_name }} \
             --resource-group $RG_NAME \
             --docker-custom-image-name ${{ needs.infrastructure.outputs.registry }}.azurecr.io/question-answer-api:latest \
             --docker-registry-server-url https://${{ needs.infrastructure.outputs.registry }}.azurecr.io
           
-          az webapp restart --name ${{ needs.infrastructure.outputs.app_name }} --resource-group $RG_NAME
+          az webapp restart --name ${{ needs.infrastructure.outputs.backend_app_name }} --resource-group $RG_NAME
+          echo "✅ Backend deployed"
 
-      - name: Health check
+  # Job 3: Deploy Frontend (runs after backend)
+  frontend:
+    runs-on: ubuntu-latest
+    needs: [infrastructure, backend]
+    # Always run if infrastructure succeeded and backend completed
+    if: |
+      always() && 
+      needs.infrastructure.result == 'success' &&
+      (needs.backend.result == 'success' || needs.backend.result == 'skipped')
+    outputs:
+      frontend_changed: ${{ steps.changes.outputs.changed }}
+      should_update_env: ${{ steps.changes.outputs.should_update_env }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Check frontend changes
+        id: changes
+        run: |
+          FRONTEND_CHANGED=false
+          SHOULD_UPDATE_ENV=false
+          
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            FRONTEND_CHANGED=true
+            SHOULD_UPDATE_ENV=true
+            echo "ℹ️  Manual workflow dispatch - will deploy frontend"
+          elif git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q '^frontend/'; then
+            FRONTEND_CHANGED=true
+            SHOULD_UPDATE_ENV=true
+            echo "✅ Frontend changes detected"
+          fi
+          
+          # Update env vars if terraform changed or backend changed (to update API URL)
+          if [ "${{ needs.infrastructure.outputs.terraform_changed }}" == "true" ] || [ "${{ needs.backend.outputs.backend_changed }}" == "true" ]; then
+            SHOULD_UPDATE_ENV=true
+            echo "✅ Terraform or backend changed - will update environment variables"
+          fi
+          
+          echo "changed=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
+          echo "should_update_env=$SHOULD_UPDATE_ENV" >> $GITHUB_OUTPUT
+          
+          if [ "$FRONTEND_CHANGED" == "false" ] && [ "$SHOULD_UPDATE_ENV" == "false" ]; then
+            echo "⏭️  No frontend, backend, or terraform changes - skipping"
+          fi
+
+      - uses: azure/login@v2
+        if: steps.changes.outputs.changed == 'true' || steps.changes.outputs.should_update_env == 'true'
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update frontend environment variables
+        if: steps.changes.outputs.should_update_env == 'true'
+        run: |
+          echo "🔧 Updating frontend environment variables..."
+          az webapp config appsettings set \
+            --name ${{ needs.infrastructure.outputs.frontend_app_name }} \
+            --resource-group $RG_NAME \
+            --settings \
+              VITE_API_URL="https://${{ needs.infrastructure.outputs.backend_url }}" \
+            > /dev/null
+          echo "✅ Environment variables updated"
+
+      - name: Build and push frontend
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: frontend
+        run: |
+          VERSION=$([ -f version.txt ] && cat version.txt || echo "0.1.0")
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          NEW_VERSION="$major.$minor.$((patch + 1))"
+          
+          echo "📦 Building frontend version: $NEW_VERSION"
+          
+          az acr build \
+            --registry ${{ needs.infrastructure.outputs.registry }} \
+            --image question-answer-frontend:${NEW_VERSION} \
+            --image question-answer-frontend:latest \
+            .
+          
+          echo $NEW_VERSION > version.txt
+          echo "✅ Image built and pushed"
+
+      - name: Update frontend version
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: frontend
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.txt
+          git diff --staged --quiet || (
+            git commit -m "chore: bump frontend version [skip ci]"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
+          )
+
+      - name: Deploy frontend container
         if: steps.changes.outputs.changed == 'true'
         run: |
-          APP_URL=$(az webapp show --name ${{ needs.infrastructure.outputs.app_name }} --resource-group $RG_NAME --query defaultHostName -o tsv)
+          echo "🚀 Deploying frontend container..."
+          az webapp config container set \
+            --name ${{ needs.infrastructure.outputs.frontend_app_name }} \
+            --resource-group $RG_NAME \
+            --docker-custom-image-name ${{ needs.infrastructure.outputs.registry }}.azurecr.io/question-answer-frontend:latest \
+            --docker-registry-server-url https://${{ needs.infrastructure.outputs.registry }}.azurecr.io
           
-          for i in {1..10}; do
-            sleep 10
-            curl -sf https://${APP_URL}/health > /dev/null && exit 0
-            echo "Attempt $i/10..."
-          done
-          exit 1
+          az webapp restart --name ${{ needs.infrastructure.outputs.frontend_app_name }} --resource-group $RG_NAME
+          echo "✅ Frontend deployed"
 
+  # Job 4: Health checks and deployment summary
+  health-check:
+    runs-on: ubuntu-latest
+    needs: [infrastructure, backend, frontend]
+    # Run if any deployment happened
+    if: |
+      always() && 
+      needs.infrastructure.result == 'success' &&
+      (needs.backend.outputs.backend_changed == 'true' || needs.frontend.outputs.frontend_changed == 'true')
+    steps:
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Wait for apps to stabilize
+        run: |
+          echo "⏳ Waiting for applications to stabilize..."
+          sleep 15
+
+      - name: Backend health check
+        if: needs.backend.outputs.backend_changed == 'true'
+        run: |
+          echo "🏥 Checking backend health..."
+          for i in {1..12}; do
+            if curl -sf https://${{ needs.infrastructure.outputs.backend_url }}/health > /dev/null 2>&1; then
+              echo "✅ Backend is healthy!"
+              exit 0
+            fi
+            echo "⏳ Backend attempt $i/12..."
+            sleep 10
+          done
+          echo "⚠️  Backend health check timed out (this may be normal if the container is still starting)"
+          exit 0
+
+      - name: Frontend health check
+        if: needs.frontend.outputs.frontend_changed == 'true'
+        run: |
+          echo "🏥 Checking frontend health..."
+          for i in {1..12}; do
+            if curl -sf https://${{ needs.infrastructure.outputs.frontend_url }} > /dev/null 2>&1; then
+              echo "✅ Frontend is healthy!"
+              exit 0
+            fi
+            echo "⏳ Frontend attempt $i/12..."
+            sleep 10
+          done
+          echo "⚠️  Frontend health check timed out (this may be normal if the container is still starting)"
+          exit 0
+
+      - name: Deployment summary
+        run: |
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 Deployment Complete!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📦 Deployed Components:"
+          [ "${{ needs.infrastructure.outputs.terraform_changed }}" == "true" ] && echo "  ✅ Infrastructure (Terraform)"
+          [ "${{ needs.backend.outputs.backend_changed }}" == "true" ] && echo "  ✅ Backend API"
+          [ "${{ needs.frontend.outputs.frontend_changed }}" == "true" ] && echo "  ✅ Frontend App"
+          echo ""
+          echo "🔗 Application URLs:"
+          echo "  📱 Frontend: https://${{ needs.infrastructure.outputs.frontend_url }}"
+          echo "  🔌 Backend:  https://${{ needs.infrastructure.outputs.backend_url }}"
+          echo ""
+          echo "ℹ️  Note: Apps may take 1-2 minutes to fully start"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

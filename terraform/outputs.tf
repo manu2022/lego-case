@@ -22,3 +22,13 @@ output "web_app_name" {
   value       = azurerm_linux_web_app.app.name
   description = "Web app name"
 }
+
+output "frontend_app_url" {
+  value       = "https://${azurerm_linux_web_app.frontend.default_hostname}"
+  description = "Frontend web app public URL"
+}
+
+output "frontend_app_name" {
+  value       = azurerm_linux_web_app.frontend.name
+  description = "Frontend web app name"
+}
