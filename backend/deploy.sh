@@ -49,11 +49,11 @@ echo "🔄 Updating web app with new container configuration..."
 az webapp stop --name $APP_NAME --resource-group $RESOURCE_GROUP
 
 # Update container configuration using the new format
-# This uses the updated Azure configuration that supports sidecar pattern
+# Always use :latest tag so the app pulls the most recent image
 az webapp config container set \
     --name $APP_NAME \
     --resource-group $RESOURCE_GROUP \
-    --docker-custom-image-name ${REGISTRY_NAME}.azurecr.io/${IMAGE_NAME}:${NEW_VERSION} \
+    --docker-custom-image-name ${REGISTRY_NAME}.azurecr.io/${IMAGE_NAME}:latest \
     --docker-registry-server-url https://${REGISTRY_NAME}.azurecr.io
 
 # Start the app with new configuration
