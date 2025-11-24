@@ -12,10 +12,8 @@ jobs:
     defaults:
       run:
         working-directory: terraform
-    
     steps:
       - uses: actions/checkout@v4
-
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.0
@@ -24,7 +22,10 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create tfvars
+      - name: Plan
+        id: plan
+        env:
+          ARM_ACCESS_KEY: ${{ secrets.TF_BACKEND_STORAGE_KEY }}
         run: |
           cat > terraform.tfvars << EOF
           resource_group_name = "rg-case"
@@ -33,12 +34,7 @@ jobs:
           langfuse_public_key = "${{ secrets.LANGFUSE_PUBLIC_KEY }}"
           langfuse_base_url   = "${{ secrets.LANGFUSE_BASE_URL }}"
           EOF
-
-      - name: Init and plan
-        id: plan
-        env:
-          ARM_ACCESS_KEY: ${{ secrets.TF_BACKEND_STORAGE_KEY }}
-        run: |
+          
           terraform init \
             -backend-config="resource_group_name=${{ secrets.TF_BACKEND_RESOURCE_GROUP }}" \
             -backend-config="storage_account_name=${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}" \
@@ -49,19 +45,18 @@ jobs:
           terraform plan -out=tfplan -no-color | tee plan.txt
         continue-on-error: true
 
-      - name: Comment on PR
+      - name: Comment
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const plan = fs.readFileSync('terraform/plan.txt', 'utf8').catch(() => 'Plan output unavailable');
-            
+            const plan = fs.readFileSync('terraform/plan.txt', 'utf8').catch(() => 'Plan unavailable');
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `#### Terraform Plan 📖\n<details><summary>Show Plan</summary>\n\n\`\`\`terraform\n${plan}\n\`\`\`\n</details>`
+              body: `#### Terraform Plan\n<details><summary>Show Plan</summary>\n\n\`\`\`terraform\n${plan}\n\`\`\`\n</details>`
             });
 
       - if: steps.plan.outcome == 'failure'
