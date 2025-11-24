@@ -43,6 +43,7 @@ echo "✅ Built and pushed ${REGISTRY_NAME}.azurecr.io/${IMAGE_NAME}:${NEW_VERSI
 RESOURCE_GROUP="rg-case"
 APP_NAME="question-answer-api"
 
+echo "ℹ️  Environment variables are managed by Terraform"
 echo "🔄 Updating web app with new container configuration..."
 
 # Stop the app to minimize issues during update
