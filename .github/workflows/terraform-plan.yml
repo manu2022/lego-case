@@ -51,7 +51,12 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const plan = fs.readFileSync('terraform/plan.txt', 'utf8').catch(() => 'Plan unavailable');
+            let plan;
+            try {
+              plan = fs.readFileSync('terraform/plan.txt', 'utf8');
+            } catch (e) {
+              plan = 'Plan unavailable';
+            }
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
