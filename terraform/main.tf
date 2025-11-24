@@ -49,6 +49,7 @@ resource "azurerm_linux_web_app" "app" {
 
   site_config {
     container_registry_use_managed_identity = true
+    always_on                               = false  # Not available in Basic tier
     
     application_stack {
       docker_image_name   = "question-answer-api:latest"
@@ -60,7 +61,7 @@ resource "azurerm_linux_web_app" "app" {
     # Docker settings (no credentials needed - using managed identity!)
     WEBSITES_PORT                       = "8000"
     DOCKER_REGISTRY_SERVER_URL          = "https://${azurerm_container_registry.acr.login_server}"
-    DOCKER_ENABLE_CI                    = "true"
+    DOCKER_ENABLE_CI                    = "false"  # Disable CI/CD webhook - we use GitHub Actions
     WEBSITES_CONTAINER_START_TIME_LIMIT = "600"
     
     # Application environment variables
@@ -68,6 +69,13 @@ resource "azurerm_linux_web_app" "app" {
     LANGFUSE_SECRET_KEY = var.langfuse_secret_key
     LANGFUSE_PUBLIC_KEY = var.langfuse_public_key
     LANGFUSE_BASE_URL   = var.langfuse_base_url
+  }
+  
+  # Prevent unnecessary redeployments
+  lifecycle {
+    ignore_changes = [
+      site_config[0].application_stack[0].docker_image_name
+    ]
   }
 }
 
@@ -80,14 +88,6 @@ resource "azurerm_role_assignment" "acr_pull" {
   depends_on                       = [azurerm_linux_web_app.app]
 }
 
-# Webhook for automatic deployment on image push
-resource "azurerm_container_registry_webhook" "app_webhook" {
-  name                = "questionanswerwebhook"
-  resource_group_name = local.rg_name
-  registry_name       = azurerm_container_registry.acr.name
-  location            = local.location
-  service_uri         = "https://${azurerm_linux_web_app.app.site_credential[0].name}:${azurerm_linux_web_app.app.site_credential[0].password}@${azurerm_linux_web_app.app.name}.scm.azurewebsites.net/api/registry/webhook"
-  actions             = ["push"]
-  status              = "enabled"
-  scope               = "question-answer-api:*"
-}
+# Webhook removed - using GitHub Actions for deployments instead
+# The webhook can cause issues with the new sidecar configuration pattern
+# and is redundant since GitHub Actions handles container updates
