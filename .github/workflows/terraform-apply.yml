@@ -2,12 +2,8 @@ name: Terraform Apply
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'terraform/**'
-      - '.github/workflows/terraform-*.yml'
-  
+    branches: [main]
+    paths: ['terraform/**', '.github/workflows/terraform-*.yml']
   workflow_dispatch:
 
 jobs:
@@ -16,35 +12,32 @@ jobs:
     environment:
       name: production
       url: https://portal.azure.com
+    defaults:
+      run:
+        working-directory: terraform
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.0
 
-      - name: Azure Login
-        uses: azure/login@v2
+      - uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create terraform.tfvars
-        working-directory: terraform
+      - name: Create tfvars
         run: |
           cat > terraform.tfvars << EOF
           resource_group_name = "rg-case"
-          
           openai_api_key      = "${{ secrets.OPENAI_API_KEY }}"
           langfuse_secret_key = "${{ secrets.LANGFUSE_SECRET_KEY }}"
           langfuse_public_key = "${{ secrets.LANGFUSE_PUBLIC_KEY }}"
           langfuse_base_url   = "${{ secrets.LANGFUSE_BASE_URL }}"
           EOF
 
-      - name: Terraform Init
-        working-directory: terraform
+      - name: Apply infrastructure
         env:
           ARM_ACCESS_KEY: ${{ secrets.TF_BACKEND_STORAGE_KEY }}
         run: |
@@ -53,18 +46,10 @@ jobs:
             -backend-config="storage_account_name=${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}" \
             -backend-config="container_name=${{ secrets.TF_BACKEND_CONTAINER }}" \
             -backend-config="key=lego-case.tfstate"
-
-      - name: Terraform Plan
-        working-directory: terraform
-        run: terraform plan -out=tfplan
-
-      - name: Terraform Apply
-        working-directory: terraform
-        run: terraform apply -auto-approve tfplan
-
-      - name: Save Terraform Outputs
-        working-directory: terraform
-        run: |
+          
+          terraform plan -out=tfplan
+          terraform apply -auto-approve tfplan
+          
           echo "### Terraform Outputs" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           terraform output >> $GITHUB_STEP_SUMMARY

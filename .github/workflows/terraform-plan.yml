@@ -2,46 +2,40 @@ name: Terraform Plan
 
 on:
   pull_request:
-    branches:
-      - main
-    paths:
-      - 'terraform/**'
-      - '.github/workflows/terraform-*.yml'
-  
-  workflow_dispatch:  # Allows manual runs from GitHub UI
+    branches: [main]
+    paths: ['terraform/**', '.github/workflows/terraform-*.yml']
+  workflow_dispatch:
 
 jobs:
   plan:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.0
 
-      - name: Azure Login
-        uses: azure/login@v2
+      - uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create terraform.tfvars
-        working-directory: terraform
+      - name: Create tfvars
         run: |
           cat > terraform.tfvars << EOF
           resource_group_name = "rg-case"
-          
           openai_api_key      = "${{ secrets.OPENAI_API_KEY }}"
           langfuse_secret_key = "${{ secrets.LANGFUSE_SECRET_KEY }}"
           langfuse_public_key = "${{ secrets.LANGFUSE_PUBLIC_KEY }}"
           langfuse_base_url   = "${{ secrets.LANGFUSE_BASE_URL }}"
           EOF
 
-      - name: Terraform Init
-        working-directory: terraform
+      - name: Init and plan
+        id: plan
         env:
           ARM_ACCESS_KEY: ${{ secrets.TF_BACKEND_STORAGE_KEY }}
         run: |
@@ -50,62 +44,26 @@ jobs:
             -backend-config="storage_account_name=${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}" \
             -backend-config="container_name=${{ secrets.TF_BACKEND_CONTAINER }}" \
             -backend-config="key=lego-case.tfstate"
-
-      - name: Terraform Validate
-        working-directory: terraform
-        run: terraform validate
-
-      - name: Terraform Plan
-        id: plan
-        working-directory: terraform
-        env:
-          ARM_ACCESS_KEY: ${{ secrets.TF_BACKEND_STORAGE_KEY }}
-        run: |
+          
+          terraform validate
           terraform plan -out=tfplan -no-color | tee plan.txt
         continue-on-error: true
 
-      - name: Comment PR with Plan
+      - name: Comment on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            let plan = '';
-            
-            try {
-              plan = fs.readFileSync('terraform/plan.txt', 'utf8');
-            } catch (error) {
-              plan = 'Could not read plan output';
-            }
-            
-            const output = `#### Terraform Plan 📖
-            
-            <details><summary>Show Plan</summary>
-            
-            \`\`\`terraform
-            ${plan}
-            \`\`\`
-            
-            </details>
-            
-            **Note:** This is a plan only. Changes will be applied after PR is merged and manually approved.`;
+            const plan = fs.readFileSync('terraform/plan.txt', 'utf8').catch(() => 'Plan output unavailable');
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: output
+              body: `#### Terraform Plan 📖\n<details><summary>Show Plan</summary>\n\n\`\`\`terraform\n${plan}\n\`\`\`\n</details>`
             });
 
-      - name: Output Plan (for manual runs)
-        if: github.event_name == 'workflow_dispatch'
-        working-directory: terraform
-        run: |
-          echo "📋 Terraform Plan Output:"
-          cat plan.txt || echo "No plan output available"
-
-      - name: Terraform Plan Status
-        if: steps.plan.outcome == 'failure'
+      - if: steps.plan.outcome == 'failure'
         run: exit 1
 

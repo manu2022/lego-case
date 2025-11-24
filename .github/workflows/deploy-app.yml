@@ -2,140 +2,88 @@ name: Deploy Application
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-app.yml'
-
+    branches: [main]
+    paths: ['backend/**', '.github/workflows/deploy-app.yml']
   workflow_dispatch:
+
+env:
+  RG_NAME: rg-case
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Allow pushing version updates
+      contents: write
       
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0  # Fetch all history for proper git operations
+          fetch-depth: 0
 
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Get Container Registry name
-        id: acr
+      - name: Get resource names
+        id: azure
         run: |
-          REGISTRY_NAME=$(az acr list --resource-group rg-case --query "[0].name" -o tsv)
-          echo "Found registry: $REGISTRY_NAME"
-          echo "registry_name=$REGISTRY_NAME" >> $GITHUB_OUTPUT
+          REGISTRY=$(az acr list --resource-group $RG_NAME --query "[0].name" -o tsv)
+          APP_NAME=$(az webapp list --resource-group $RG_NAME --query "[0].name" -o tsv)
+          echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
         
-      - name: Build and push to ACR
+      - name: Build and push image
+        working-directory: backend
         run: |
-          cd backend
-          
-          # Get current version
-          if [ -f version.txt ]; then
-            VERSION=$(cat version.txt)
-          else
-            VERSION="0.1.0"
-          fi
-          
-          # Increment patch version
+          VERSION=$([ -f version.txt ] && cat version.txt || echo "0.1.0")
           IFS='.' read -r major minor patch <<< "$VERSION"
-          patch=$((patch + 1))
-          NEW_VERSION="$major.$minor.$patch"
+          NEW_VERSION="$major.$minor.$((patch + 1))"
           
-          echo "Building version: $NEW_VERSION"
-          echo "Using registry: ${{ steps.acr.outputs.registry_name }}"
-          
-          # Build and push
           az acr build \
-            --registry ${{ steps.acr.outputs.registry_name }} \
+            --registry ${{ steps.azure.outputs.registry }} \
             --image question-answer-api:${NEW_VERSION} \
             --image question-answer-api:latest \
             .
           
-          # Update version file for next build
           echo $NEW_VERSION > version.txt
-          echo "✅ Built and pushed version $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           
-      - name: Commit version update
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update version in repo
+        working-directory: backend
         run: |
-          cd backend
-          
-          # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Add version file
           git add version.txt
-          
-          # Check if there are changes
-          if git diff --staged --quiet; then
-            echo "No version changes to commit"
-          else
-            # Commit with [skip ci] to avoid infinite loop
-            git commit -m "chore: bump version to $(cat version.txt) [skip ci]"
-            
-            # Push using GITHUB_TOKEN for authentication
-            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
-            
-            echo "✅ Version updated to $(cat version.txt)"
-          fi
+          git diff --staged --quiet || (
+            git commit -m "chore: bump version [skip ci]"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
+          )
 
-      - name: Deploy to Azure Web App
+      - name: Deploy to Web App
         run: |
-          # Get Web App name
-          APP_NAME=$(az webapp list --resource-group rg-case --query "[0].name" -o tsv)
-          echo "Deploying to Web App: $APP_NAME"
-          
-          # Configure Web App to use latest image
           az webapp config container set \
-            --name $APP_NAME \
-            --resource-group rg-case \
-            --docker-custom-image-name ${{ steps.acr.outputs.registry_name }}.azurecr.io/question-answer-api:latest \
-            --docker-registry-server-url https://${{ steps.acr.outputs.registry_name }}.azurecr.io
+            --name ${{ steps.azure.outputs.app_name }} \
+            --resource-group $RG_NAME \
+            --docker-custom-image-name ${{ steps.azure.outputs.registry }}.azurecr.io/question-answer-api:latest \
+            --docker-registry-server-url https://${{ steps.azure.outputs.registry }}.azurecr.io
           
-          # Restart to pull new image
-          az webapp restart --name $APP_NAME --resource-group rg-case
-          
-          echo "✅ Deployment triggered for $APP_NAME"
+          az webapp restart --name ${{ steps.azure.outputs.app_name }} --resource-group $RG_NAME
 
-      - name: Verify deployment
+      - name: Health check
         run: |
-          # Get Web App URL
-          APP_URL=$(az webapp list --resource-group rg-case --query "[0].defaultHostName" -o tsv)
-          echo "Checking health at: https://${APP_URL}/health"
+          APP_URL=$(az webapp show --name ${{ steps.azure.outputs.app_name }} --resource-group $RG_NAME --query defaultHostName -o tsv)
           
-          # Wait for deployment
-          echo "Waiting 60 seconds for deployment..."
-          sleep 60
-          
-          # Health check with retries
-          MAX_RETRIES=5
-          RETRY_COUNT=0
-          
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${APP_URL}/health || echo "000")
-            
-            if [ "$HTTP_CODE" == "200" ]; then
-              echo "✅ Deployment successful! Health check passed."
+          for i in {1..5}; do
+            sleep 12
+            if curl -sf https://${APP_URL}/health > /dev/null; then
+              echo "✅ Deployment successful!"
               exit 0
-            else
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              echo "⏳ Attempt $RETRY_COUNT/$MAX_RETRIES: Health check returned $HTTP_CODE, retrying in 10s..."
-              sleep 10
             fi
+            echo "⏳ Attempt $i/5 failed, retrying..."
           done
           
-          echo "❌ Deployment verification failed after $MAX_RETRIES attempts"
+          echo "❌ Health check failed"
           exit 1
 
