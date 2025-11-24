@@ -1,6 +1,9 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+FROM python:3.13-slim
 
 WORKDIR /app
+
+# Install uv
+RUN pip install --no-cache-dir uv
 
 # Copy dependency files
 COPY pyproject.toml ./
@@ -11,6 +14,9 @@ RUN uv venv && \
 
 # Copy application code
 COPY . .
+
+# Set PYTHONPATH to include the current directory
+ENV PYTHONPATH=/app
 
 # Expose port
 EXPOSE 8000

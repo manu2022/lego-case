@@ -9,8 +9,12 @@ from routers import chat, multimodal
 async def lifespan(app: FastAPI):
     """Lifespan context manager for cleanup"""
     # Startup
-    print("🚀 Starting up - Langfuse initialized")
+    print("=" * 80)
+    print("🚀 Starting FastAPI application...")
     print(f"📊 Langfuse host: {settings.langfuse_base_url}")
+    print(f"✅ Configuration loaded successfully")
+    print(f"🤖 Models: gpt-5-mini, Phi-4-multimodal-instruct")
+    print("=" * 80)
     yield
     # Shutdown: Flush Langfuse events
     print("🔄 Flushing Langfuse events...")
