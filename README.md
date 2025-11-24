@@ -1,45 +1,51 @@
-# Lego Case - Question Answer API
+# Lego Case - Image Question Answering Platform
 
-A production-ready FastAPI application that provides question-answering capabilities using Azure OpenAI (GPT-5 Mini), with observability powered by Langfuse.
+A production-ready full-stack application that allows users to upload images and ask questions about them using Azure OpenAI multimodal capabilities (GPT-4 Vision / Phi-4), with observability powered by Langfuse.
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                     GitHub Actions                       │
-│  (CI/CD Pipeline - Auto Deploy on PR merge to main)     │
+│       (CI/CD - Auto Deploy on Push to main)             │
 └────────────────────┬────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────┐
 │              Azure Container Registry                    │
-│         (Docker images: question-answer-api)            │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│            Azure Container Apps                          │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  FastAPI App (question-answer-api)               │  │
-│  │  - POST /ask  : Ask questions                    │  │
-│  │  - GET  /health : Health check                   │  │
-│  └──────────────────────────────────────────────────┘  │
-│           │                        │                    │
-│           ▼                        ▼                    │
-│   Azure OpenAI (GPT-5 Mini)   Langfuse                 │
-│   (Question Processing)       (Observability)           │
-└─────────────────────────────────────────────────────────┘
+│    (Docker images: frontend + backend)                  │
+└────────────┬────────────────────┬───────────────────────┘
+             │                    │
+             ▼                    ▼
+┌────────────────────┐  ┌────────────────────────────────┐
+│  Frontend Web App  │  │     Backend API Web App        │
+│  (React + Vite)    │◄─┤     (FastAPI)                  │
+│  - Image upload    │  │  - POST /multimodal/ask-...    │
+│  - Q&A interface   │  │  - GET  /health                │
+└────────────────────┘  └─────────┬──────────────────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+         Azure OpenAI (Multimodal)         Langfuse
+         (Vision + Text Processing)    (Observability)
 ```
+
+**Key Features:**
+- 🔒 **CORS Configured via CI/CD**: Frontend and backend URLs are dynamically linked
+- 🔄 **Automatic Deployment**: Push to main triggers infrastructure + app deployment
+- 📦 **Shared Container Registry**: Both apps use the same ACR
+- 🏷️ **Version Control**: Automatic semantic versioning on each deployment
 
 ## 🚀 Features
 
-- **Question Answering**: Ask questions and get intelligent responses from GPT-5 Mini
-- **Observability**: Full request tracing with Langfuse integration
-- **Production Ready**: Deployed on Azure Container Apps with auto-scaling
-- **CI/CD Pipeline**: Automated deployment via GitHub Actions
-- **Infrastructure as Code**: Terraform for Azure resource management
-- **Health Checks**: Built-in health endpoints for monitoring
+- **Image Question Answering**: Upload images and ask questions about them
+- **Modern React UI**: Clean, responsive interface built with React + TypeScript
+- **Multimodal AI**: Powered by Azure OpenAI vision models (GPT-4 Vision / Phi-4)
+- **Full Observability**: Request tracing and token usage tracking with Langfuse
+- **Production Ready**: Deployed on Azure App Service with auto-scaling
+- **Automated CI/CD**: GitHub Actions handles infrastructure + deployment
+- **Infrastructure as Code**: Terraform manages all Azure resources
+- **Dynamic Configuration**: CORS and API URLs configured automatically via CI/CD
 
 ## 📋 Prerequisites
 
@@ -146,43 +152,107 @@ This creates:
 
 ### Application Deployment
 
-#### Manual Deployment
+#### Option 1: Full Stack Deployment (Recommended)
+
+Deploy both frontend and backend at once:
 
 ```bash
-cd backend
-./deploy.sh
+./deploy-all.sh
 ```
 
-#### Automated Deployment (CI/CD)
+This script:
+1. Builds and pushes both Docker images to ACR
+2. Updates both web apps with new images
+3. Configures CORS (backend) and API URL (frontend)
+4. Performs health checks
+5. Auto-increments version numbers
 
-1. **Setup GitHub Actions**: See [CI/CD Setup Guide](.github/CICD_SETUP.md)
-2. **Push to main**: Deployment happens automatically after PR merge
-3. **Monitor**: Check GitHub Actions tab for deployment status
+#### Option 2: Individual Deployment
+
+Deploy services separately:
+
+```bash
+# Backend only
+cd backend && ./deploy.sh
+
+# Frontend only
+cd frontend && ./deploy.sh
+```
+
+**Note**: You'll need to manually configure CORS and API URLs if deploying individually.
+
+#### Option 3: Automated CI/CD (Recommended for Production)
+
+Push to `main` branch triggers automatic deployment:
+
+```bash
+git add .
+git commit -m "feat: add new feature"
+git push origin main
+```
+
+The CI/CD pipeline will:
+1. ✅ Deploy infrastructure changes (if any)
+2. ✅ Build and deploy backend (if changed)
+3. ✅ Build and deploy frontend (if changed)
+4. ✅ Configure cross-app environment variables:
+   - Backend: `CORS_ORIGINS=https://frontend-url`
+   - Frontend: `VITE_API_URL=https://backend-url`
+5. ✅ Run health checks on both apps
 
 ## 🔄 CI/CD Pipeline
 
-We use **separate pipelines** for application and infrastructure:
+The deployment pipeline automatically handles the complete stack:
 
-### Application Pipeline
-- **Trigger**: Push to `main` (when `backend/**` changes)
-- **Steps**: Build → Push to ACR → Deploy to Container Apps → Health Check
-- **Auto-runs**: Yes, no approval needed
+### Pipeline Stages
 
-### Infrastructure Pipeline
-- **Trigger**: Push to `main` (when `terraform/**` changes)
-- **Steps**: Plan → **Manual Approval** → Apply
-- **Auto-runs**: Requires manual approval in GitHub
+```
+Infrastructure → Backend → Frontend → Configure Apps
+     ↓              ↓          ↓            ↓
+   Terraform    Build API   Build UI    Link Apps
+   (if changed)  (if changed) (if changed) (CORS + URL)
+```
 
-**Full setup instructions**: [CI/CD Setup Guide](.github/CICD_SETUP.md)
+### What Gets Deployed When
+
+- **`terraform/**` changes**: Updates infrastructure (registry, app services, etc.)
+- **`backend/**` changes**: Builds new backend image, deploys, restarts
+- **`frontend/**` changes**: Builds new frontend image, deploys, restarts
+- **Any change**: Re-configures CORS and API URLs to link apps
+
+### GitHub Actions Workflow
+
+See `.github/workflows/deploy-main.yml` for the complete workflow.
+
+**Required GitHub Secrets:**
+- `AZURE_CREDENTIALS`: Service principal for Azure login
+- `TF_BACKEND_*`: Terraform backend configuration
+- `OPENAI_API_KEY`: Azure OpenAI API key
+- `LANGFUSE_*`: Langfuse configuration
 
 ## 📁 Project Structure
 
 ```
 lego-case/
+├── frontend/                   # React application
+│   ├── src/
+│   │   ├── components/        # React components
+│   │   ├── hooks/             # Custom hooks
+│   │   ├── types/             # TypeScript types
+│   │   ├── App.tsx            # Main app component
+│   │   └── config.ts          # API configuration
+│   ├── Dockerfile             # Frontend container
+│   ├── deploy.sh              # Frontend deploy script
+│   ├── package.json           # Node dependencies
+│   └── version.txt            # Current version
 ├── backend/                    # FastAPI application
+│   ├── routers/
+│   │   ├── chat.py            # Text Q&A endpoint
+│   │   └── multimodal.py      # Image Q&A endpoint
 │   ├── app.py                 # Main application code
-│   ├── Dockerfile             # Container image definition
-│   ├── deploy.sh              # Deployment script
+│   ├── config.py              # Settings & env vars
+│   ├── Dockerfile             # Backend container
+│   ├── deploy.sh              # Backend deploy script
 │   ├── pyproject.toml         # Python dependencies
 │   └── version.txt            # Current version
 ├── terraform/                  # Infrastructure as Code
@@ -192,9 +262,8 @@ lego-case/
 │   └── setup-vars.sh          # Env to tfvars helper
 ├── .github/
 │   └── workflows/             # CI/CD pipelines
-│       ├── deploy-app.yml     # App deployment
-│       ├── terraform-plan.yml # Terraform plan on PR
-│       └── terraform-apply.yml # Terraform apply
+│       └── deploy-main.yml    # Main deployment pipeline
+├── deploy-all.sh              # Deploy full stack locally
 ├── .gitignore                 # Git ignore rules
 └── README.md                  # This file
 ```
