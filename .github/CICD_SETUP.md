@@ -211,7 +211,7 @@ az containerapp update \
 
 ---
 
-## 📝 Notes
+## Notes
 
 - **Version numbering:** Auto-incremented on each deployment (patch version)
 - **Image tags:** Both versioned (`0.1.5`) and `latest` tags are created
