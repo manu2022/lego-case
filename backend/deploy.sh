@@ -37,5 +37,41 @@ az acr build \
 # Save new version
 echo $NEW_VERSION > version.txt
 
-echo "✅ Deployed ${REGISTRY_NAME}.azurecr.io/${IMAGE_NAME}:${NEW_VERSION}"
+echo "✅ Built and pushed ${REGISTRY_NAME}.azurecr.io/${IMAGE_NAME}:${NEW_VERSION}"
 
+# Configuration
+RESOURCE_GROUP="rg-case"
+APP_NAME="question-answer-api"
+
+echo "🔄 Updating web app with new container configuration..."
+
+# Stop the app to minimize issues during update
+az webapp stop --name $APP_NAME --resource-group $RESOURCE_GROUP
+
+# Update container configuration using the new format
+# This uses the updated Azure configuration that supports sidecar pattern
+az webapp config container set \
+    --name $APP_NAME \
+    --resource-group $RESOURCE_GROUP \
+    --docker-custom-image-name ${REGISTRY_NAME}.azurecr.io/${IMAGE_NAME}:${NEW_VERSION} \
+    --docker-registry-server-url https://${REGISTRY_NAME}.azurecr.io
+
+# Start the app with new configuration
+az webapp start --name $APP_NAME --resource-group $RESOURCE_GROUP
+
+echo "✅ Deployment complete!"
+echo "🌐 App URL: https://${APP_NAME}.azurewebsites.net"
+echo "⏱️  Waiting for app to be ready..."
+
+# Health check
+sleep 15
+for i in {1..5}; do
+    if curl -sf https://${APP_NAME}.azurewebsites.net/health > /dev/null; then
+        echo "✅ App is healthy and responding!"
+        exit 0
+    fi
+    echo "⏳ Attempt $i/5 - waiting for app to start..."
+    sleep 10
+done
+
+echo "⚠️  Deployment completed but health check timed out. Check the app manually."
