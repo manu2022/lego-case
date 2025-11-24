@@ -1,0 +1,4 @@
+[submodule "langfuse-on-azure"]
+	path = langfuse-on-azure
+	url = https://github.com/Azure-Samples/langfuse-on-azure.git
+
