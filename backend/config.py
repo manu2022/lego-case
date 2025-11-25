@@ -1,5 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -12,16 +15,26 @@ class Settings(BaseSettings):
         env_ignore_empty=True
     )
     
+    # API Keys
     openai_api_key: str
     claude_api_key: str
     langfuse_secret_key: str
     langfuse_public_key: str
     langfuse_base_url: str  # Must come from env - no default!
+    
+    # CORS Configuration
     cors_origins: str = "*"  # Comma-separated list of allowed origins
     
-    # Claude/Anthropic Configuration
-    claude_endpoint: str = "https://manue-mg9c9a0z-eastus2.services.ai.azure.com/anthropic/"
-    claude_deployment_name: str = "claude-haiku-4-5"
+    # Model Configuration
+    chat_model_name: str = "gpt-5-mini"  # Text chat model
+    multimodal_model_name: str = "gpt-5-mini"  # Multimodal model
+    
+    # Azure OpenAI Configuration
+    azure_openai_endpoint: str = "https://foundry-service-lego.openai.azure.com"
+    azure_openai_api_version: str = "2024-02-01"
+    
+    # Azure AI Foundry Configuration
+    azure_ai_foundry_endpoint: str = "https://foundry-service-lego.cognitiveservices.azure.com/models"
 
 
 # Load settings with error handling
@@ -33,17 +46,18 @@ try:
     os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
     os.environ["LANGFUSE_HOST"] = settings.langfuse_base_url
     
-    print("✅ Configuration loaded successfully")
-    print(f"   Langfuse URL: {settings.langfuse_base_url}")
-    print(f"   OpenAI API Key: {'*' * 20}{settings.openai_api_key[-4:]}")
+    logger.info("Configuration loaded successfully")
+    logger.info(f"Langfuse URL: {settings.langfuse_base_url}")
+    logger.info(f"Chat Model: {settings.chat_model_name}")
+    logger.info(f"Multimodal Model: {settings.multimodal_model_name}")
+    logger.info(f"OpenAI API Key: {'*' * 20}{settings.openai_api_key[-4:]}")
 except Exception as e:
-    print(f"❌ Error loading configuration: {e}")
-    print(f"   Make sure these environment variables are set:")
-    print(f"   - OPENAI_API_KEY")
-    print(f"   - CLAUDE_API_KEY")
-    print(f"   - LANGFUSE_SECRET_KEY")
-    print(f"   - LANGFUSE_PUBLIC_KEY")
-    print(f"   - LANGFUSE_BASE_URL")
-    print(f"\n   In Azure, these are managed by Terraform (see terraform/main.tf)")
+    logger.error(f"Error loading configuration: {e}")
+    logger.error("Make sure these environment variables are set:")
+    logger.error("- OPENAI_API_KEY")
+    logger.error("- LANGFUSE_SECRET_KEY")
+    logger.error("- LANGFUSE_PUBLIC_KEY")
+    logger.error("- LANGFUSE_BASE_URL")
+    logger.error("In Azure, these are managed by Terraform (see terraform/main.tf)")
     raise
 
