@@ -13,10 +13,13 @@ logger = logging.getLogger(__name__)
 
 router_api = APIRouter(prefix="/router", tags=["router"])
 
-claude_client = AnthropicFoundry(
-    api_key=settings.claude_api_key,
-    base_url=settings.claude_endpoint
-)
+
+def get_claude_client():
+    """Lazy-load Claude client to avoid startup issues"""
+    return AnthropicFoundry(
+        api_key=settings.claude_api_key,
+        base_url=settings.claude_endpoint
+    )
 
 
 @observe()
@@ -27,6 +30,7 @@ def classify_and_sanitize(query: str) -> RouterResponse:
     
     logger.info(f"Routing query: {query[:50]}...")
     
+    claude_client = get_claude_client()
     message = claude_client.messages.create(
         model=settings.claude_deployment_name,
         messages=[
