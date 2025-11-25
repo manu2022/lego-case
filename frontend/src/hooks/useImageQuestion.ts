@@ -37,8 +37,8 @@ export const useImageQuestion = () => {
   }
 
   const submitQuestion = async () => {
-    if (!image || !question.trim()) {
-      setError('Please select an image or PDF and enter a question')
+    if (!question.trim()) {
+      setError('Please enter a question')
       return
     }
 
@@ -47,21 +47,69 @@ export const useImageQuestion = () => {
     setResponse(null)
 
     try {
-      const formData = new FormData()
-      formData.append('image', image)
-      formData.append('question', question)
-
-      const res = await fetch(`${API_URL}/multimodal/ask-with-image`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status} ${res.statusText}`)
+      // Step 1: Call router for classification and PII redaction
+      const routerFormData = new FormData()
+      routerFormData.append('question', question)
+      if (image) {
+        routerFormData.append('image', image)
       }
 
-      const data: ApiResponse = await res.json()
-      setResponse(data)
+      const routerRes = await fetch(`${API_URL}/router/ask`, {
+        method: 'POST',
+        body: routerFormData,
+      })
+
+      if (!routerRes.ok) {
+        throw new Error(`Router error: ${routerRes.status} ${routerRes.statusText}`)
+      }
+
+      const routerData = await routerRes.json()
+      const { sanitized_query, agent } = routerData
+
+      // Step 2: Handle irrelevant queries
+      if (agent === 'irrelevant') {
+        setError('Sorry, I cannot assist with that query. Please ask work-related questions.')
+        setLoading(false)
+        return
+      }
+
+      // Step 3: Route to appropriate agent based on response
+      let finalData: ApiResponse
+
+      if (agent === 'multimodal_agent' && image) {
+        // Call multimodal endpoint
+        const multimodalFormData = new FormData()
+        multimodalFormData.append('question', sanitized_query)
+        multimodalFormData.append('image', image)
+
+        const multimodalRes = await fetch(`${API_URL}/multimodal/ask-with-image`, {
+          method: 'POST',
+          body: multimodalFormData,
+        })
+
+        if (!multimodalRes.ok) {
+          throw new Error(`Multimodal API error: ${multimodalRes.status}`)
+        }
+
+        finalData = await multimodalRes.json()
+      } else {
+        // Call text chat endpoint
+        const chatRes = await fetch(`${API_URL}/chat/ask`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ question: sanitized_query }),
+        })
+
+        if (!chatRes.ok) {
+          throw new Error(`Chat API error: ${chatRes.status}`)
+        }
+
+        finalData = await chatRes.json()
+      }
+
+      setResponse(finalData)
       
       // Clear form after successful submission
       setQuestion('')

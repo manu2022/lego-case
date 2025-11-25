@@ -1,6 +1,6 @@
 """Pydantic schemas for API request/response models"""
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal
 
 
 class QuestionRequest(BaseModel):
@@ -15,18 +15,20 @@ class AnswerResponse(BaseModel):
 
 
 class MultimodalResponse(BaseModel):
-    """Response model for multimodal (image/PDF) questions"""
+    """Response model for multimodal (image) questions"""
     question: str
     answer: str
     usage: dict
-    file_type: str = "image"
-    pages_processed: Optional[int] = None
 
 
-class UsageMetrics(BaseModel):
-    """Token usage metrics"""
-    input: int
-    output: int
-    total: int
-    unit: str = "TOKENS"
+class RouterResponse(BaseModel):
+    """Response from router classification"""
+    agent: Literal["qa_agent", "irrelevant"] = Field(..., description="Selected agent")
+    query: str = Field(..., description="Sanitized query with PII removed")
+
+
+class FinalResponse(BaseModel):
+    """Final response from router to user"""
+    sanitized_query: str
+    agent: str
 

@@ -4,7 +4,6 @@ import './App.css'
 
 function App() {
   const {
-    image,
     imagePreview,
     question,
     response,
@@ -29,7 +28,6 @@ function App() {
         imagePreview={imagePreview}
         question={question}
         loading={loading}
-        hasImage={!!image}
         fileName={fileName}
         onImageChange={handleImageChange}
         onRemoveImage={removeImage}

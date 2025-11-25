@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     
     # API Keys
     openai_api_key: str
+    claude_api_key: str
     langfuse_secret_key: str
     langfuse_public_key: str
     langfuse_base_url: str  # Must come from env - no default!

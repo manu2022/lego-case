@@ -4,7 +4,6 @@ interface InputAreaProps {
   imagePreview: string
   question: string
   loading: boolean
-  hasImage: boolean
   fileName?: string
   onImageChange: (file: File | null) => void
   onRemoveImage: () => void
@@ -16,7 +15,6 @@ export const InputArea = ({
   imagePreview,
   question,
   loading,
-  hasImage,
   fileName,
   onImageChange,
   onRemoveImage,
@@ -46,7 +44,6 @@ export const InputArea = ({
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
                 <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
               </svg>
               <p>{fileName}</p>
             </div>
@@ -80,7 +77,7 @@ export const InputArea = ({
 
         <input
           type="text"
-          placeholder="Ask a question about your image or PDF..."
+          placeholder="Ask a question (with or without image)..."
           value={question}
           onChange={(e) => onQuestionChange(e.target.value)}
           disabled={loading}
@@ -89,7 +86,7 @@ export const InputArea = ({
 
         <button 
           type="submit" 
-          disabled={loading || !hasImage || !question.trim()}
+          disabled={loading || !question.trim()}
           className="send-btn"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

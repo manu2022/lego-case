@@ -60,6 +60,7 @@ jobs:
           cat > terraform.tfvars << EOF
           resource_group_name = "rg-case"
           openai_api_key      = "${{ secrets.OPENAI_API_KEY }}"
+          claude_api_key      = "${{ secrets.CLAUDE_API_KEY }}"
           langfuse_secret_key = "${{ secrets.LANGFUSE_SECRET_KEY }}"
           langfuse_public_key = "${{ secrets.LANGFUSE_PUBLIC_KEY }}"
           langfuse_base_url   = "${{ secrets.LANGFUSE_BASE_URL }}"
@@ -124,6 +125,7 @@ jobs:
             --resource-group $RG_NAME \
             --settings \
               OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+              CLAUDE_API_KEY="${{ secrets.CLAUDE_API_KEY }}" \
               LANGFUSE_SECRET_KEY="${{ secrets.LANGFUSE_SECRET_KEY }}" \
               LANGFUSE_PUBLIC_KEY="${{ secrets.LANGFUSE_PUBLIC_KEY }}" \
               LANGFUSE_BASE_URL="${{ secrets.LANGFUSE_BASE_URL }}" \

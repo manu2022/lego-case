@@ -5,7 +5,7 @@ from langfuse.decorators import langfuse_context
 import logging
 
 from config import settings
-from routers import chat, multimodal
+from routers import chat, multimodal, router
 
 # Configure logging
 logging.basicConfig(
@@ -55,16 +55,18 @@ app.add_middleware(
 # Include routers
 app.include_router(chat.router)
 app.include_router(multimodal.router)
+app.include_router(router.router_api)
 
 
 @app.get("/")
 async def root():
     """Root endpoint"""
     return {
-        "message": "Question Answer API",
+        "message": "Question Answer API with Intelligent Routing",
         "endpoints": {
-            "POST /chat/ask": "Ask a text question",
-            "POST /multimodal/ask-with-image": "Ask a question about an image (upload file - try in /docs!)",
+            "POST /router/ask": "Main endpoint - Ask any question (with optional image, includes PII redaction)",
+            "POST /chat/ask": "Direct text chat (no routing)",
+            "POST /multimodal/ask-with-image": "Direct multimodal (no routing)",
             "GET /health": "Health check"
         }
     }

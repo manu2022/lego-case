@@ -22,3 +22,8 @@ variable "langfuse_base_url" {
   type    = string
   default = "http://langfuse.legocase.com"
 }
+
+variable "claude_api_key" {
+  type      = string
+  sensitive = true
+}

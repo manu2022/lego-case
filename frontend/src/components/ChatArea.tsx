@@ -19,9 +19,11 @@ export const ChatArea = ({ response, loading, error }: ChatAreaProps) => {
           <div className="message assistant-message">
             <div className="message-content">
               <p>{response.answer}</p>
-              <div className="token-info">
-                {response.usage.total} tokens
-              </div>
+              {response.usage && (
+                <div className="token-info">
+                  {response.usage.total} tokens
+                </div>
+              )}
             </div>
           </div>
         </>

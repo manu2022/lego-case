@@ -5,88 +5,24 @@ from azure.core.credentials import AzureKeyCredential
 from langfuse import Langfuse
 from datetime import datetime
 import base64
-import logging
-from typing import Optional
 
 from config import settings
 from schemas import MultimodalResponse
 from prompts import MULTIMODAL_SYSTEM_PROMPT
 
-# Configure logging
-logger = logging.getLogger(__name__)
-
-# Try to import PDF processing libraries
-try:
-    import fitz  # PyMuPDF
-    PDF_SUPPORT = True
-except ImportError:
-    PDF_SUPPORT = False
-    logger.warning("PyMuPDF not installed. PDF support disabled. Install with: pip install PyMuPDF")
-
-
 router = APIRouter(prefix="/multimodal", tags=["multimodal"])
 
-# Initialize Azure AI Inference client for multimodal
 client = ChatCompletionsClient(
     endpoint=settings.azure_ai_foundry_endpoint,
     credential=AzureKeyCredential(settings.openai_api_key),
     model=settings.multimodal_model_name
 )
 
-# Initialize Langfuse client
 langfuse = Langfuse(
     secret_key=settings.langfuse_secret_key,
     public_key=settings.langfuse_public_key,
     host=settings.langfuse_base_url
 )
-
-
-def pdf_to_images(pdf_bytes: bytes, max_pages: int = 5) -> list[tuple[str, str]]:
-    """Convert PDF pages to base64-encoded images
-    
-    Args:
-        pdf_bytes: PDF file content as bytes
-        max_pages: Maximum number of pages to process (default: 5)
-        
-    Returns:
-        List of tuples (base64_image_data, format)
-    """
-    if not PDF_SUPPORT:
-        raise HTTPException(
-            status_code=400, 
-            detail="PDF processing not supported. PyMuPDF library not installed."
-        )
-    
-    try:
-        # Open PDF from bytes
-        pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
-        images = []
-        
-        # Process pages (limit to max_pages to avoid overwhelming the model)
-        num_pages = min(len(pdf_document), max_pages)
-        
-        for page_num in range(num_pages):
-            page = pdf_document[page_num]
-            
-            # Render page to image (PNG format, 150 DPI for good quality)
-            pix = page.get_pixmap(matrix=fitz.Matrix(150/72, 150/72))
-            
-            # Convert to PNG bytes
-            img_bytes = pix.tobytes("png")
-            
-            # Encode to base64
-            img_base64 = base64.b64encode(img_bytes).decode("utf-8")
-            
-            images.append((img_base64, "png"))
-        
-        pdf_document.close()
-        
-        logger.info(f"Converted {num_pages} PDF page(s) to images")
-        return images
-        
-    except Exception as e:
-        logger.error(f"Error processing PDF: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error processing PDF: {str(e)}")
 
 
 def ask_multimodal_question(question: str, image_data: str, image_format: str) -> tuple[str, dict]:
@@ -122,8 +58,8 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
     }
     
     langfuse.generation(
-        name="multimodal_completion",
-        model=settings.multimodal_model_name,
+        name="phi4_multimodal_completion",
+        model="Phi-4-multimodal-instruct",
         model_parameters={},
         input=[
             {"role": "system", "content": MULTIMODAL_SYSTEM_PROMPT},
