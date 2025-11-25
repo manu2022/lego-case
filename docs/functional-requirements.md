@@ -18,10 +18,10 @@ title: Functional Requirements
 
 ### 1.1 User Authentication & Authorization
 
-- System integrates with Microsoft Entra ID as the identity provider
+- System integrates with enterprise identity provider for authentication
 - System supports Single Sign-On (SSO) for seamless employee access
 - System enforces Multi-Factor Authentication (MFA) for all user sessions
-- System implements role-based access control with at least two user roles:
+- System implements role-based access control (RBAC) with at least two user roles:
   - **Standard User:** Basic chatbot interaction capabilities
   - **Developer User:** Advanced model parameter control
 - System restricts access to model parameters (temperature, max tokens, model selection) to Developer role only
@@ -38,7 +38,6 @@ title: Functional Requirements
 - System displays user messages and AI responses in chronological order
 - System supports markdown rendering in AI responses
 - System indicates when the AI is processing (typing indicators)
-- System handles streaming responses for improved perceived latency
 - System maintains conversation history for each user
 - System allows users to:
   - View past conversations
@@ -82,7 +81,7 @@ title: Functional Requirements
 
 #### FR-1.3.4: LLM Integration
 
-- System integrates with Microsoft AI Service
+- System integrates with LLM providers (OpenAI-compatible APIs)
 - System supports multiple model versions simultaneously
 - System handles LLM API failures with graceful degradation
 - System implements retry logic with exponential backoff
@@ -101,7 +100,7 @@ title: Functional Requirements
   - Credit card numbers
   - Physical addresses
 - System redacts detected PII from queries before LLM processing
-- System stores redacted PII in Azure Key Vault with encrypted storage
+- System stores redacted PII in secure secrets management service with encryption
 - System re-injects PII into responses only for the originating user
 
 #### FR-1.4.2: Prompt Injection Prevention
@@ -119,15 +118,9 @@ title: Functional Requirements
 
 #### FR-1.4.4: Data Encryption
 
-- System encrypts all data in transit using TLS 1.3
+- System encrypts all data in transit using TLS 1.3+
 - System encrypts all sensitive data at rest
-- System uses Azure Key Vault for secrets management
-
-#### FR-1.4.5: Network Security
-
-- System implements firewall rules allowing only corporate IP addresses and VPN connections
-- System blocks all traffic from unauthorized sources
-- System implements DDoS protection via Azure API Gateway
+- System uses secure secrets management service for API keys and credentials
 
 ---
 
@@ -135,29 +128,19 @@ title: Functional Requirements
 
 #### FR-1.5.1: Multi-Modal File Handling
 
-- System processes files through the following pipeline:
-  1. User selects file in frontend
-  2. Frontend creates base64 preview for display
-  3. Frontend sends raw file via FormData (HTTP multipart)
-  4. Backend receives raw bytes
-  5. Backend converts to base64
-  6. Backend creates data URL (e.g., "data:image/jpeg;base64,...")
-  7. Azure OpenAI processes base64 data URL with multimodal LLM
+- System processes uploaded files (images, documents) for multimodal LLM analysis
+- System converts files to appropriate format for LLM processing
+- System handles file encoding and transmission securely
 
 ---
 
 ### 1.6 Caching & Performance Optimization
 
-#### FR-1.6.1: Redis Caching
+#### FR-1.6.1: Response Caching
 
-- System implements Redis cache for model response caching (for identical queries)
-- System defines cache TTL (Time To Live) policies
-
-#### FR-1.6.2: API Gateway Caching
-
-- Azure API Gateway caches responses for identical requests
-- System defines cache duration based on query type
-- System implements cache-control headers
+- System implements caching for identical queries to reduce LLM API calls
+- System defines cache TTL (Time To Live) policies based on query type
+- System implements cache invalidation strategies
 
 ---
 
@@ -173,13 +156,13 @@ title: Functional Requirements
   - Token usage (prompt tokens, completion tokens, total)
   - Cost tracking (per request, per user, per model)
   - Model performance metrics
-- System stores all traces in PostgreSQL database
-- System provides Langfuse web platform access for metrics visualization
+- System stores all traces in persistent database
+- System provides web platform access for metrics visualization
 
-#### FR-1.7.2: Azure Application Insights
+#### FR-1.7.2: Application Performance Monitoring
 
-- System integrates Azure Application Insights for:
-  - Application performance monitoring (APM)
+- System integrates APM tools for:
+  - Application performance monitoring
   - Exception tracking and error logging
   - Dependency tracking (API calls, database queries)
   - Custom events and metrics
@@ -201,29 +184,28 @@ title: Functional Requirements
 #### FR-1.8.1: Infrastructure as Code (IaC)
 
 - System uses Terraform for infrastructure provisioning
-- System maintains Terraform state in Azure Storage Account
+- System maintains Terraform state in secure remote storage
 - System supports multiple environments (dev, staging, production)
-- System implements Terraform workspaces for environment isolation
+- System implements environment isolation
 
 #### FR-1.8.2: CI/CD Pipeline
 
-- System implements GitHub Actions for CI/CD
+- System implements automated CI/CD pipeline
 - Pipeline includes:
-  - Automated testing (unit, integration, E2E)
+  - Automated testing (runs all test suites)
   - Code quality checks (linting, security scanning)
-  - Docker image building
+  - Container image building
   - Infrastructure deployment (Terraform)
-  - Application deployment (Azure Container Apps)
+  - Application deployment to container platform
 - System implements blue-green or canary deployment strategies
 
 #### FR-1.8.3: Container Management
 
-- System maintains two container images:
+- System maintains containerized applications:
   - Frontend (React application)
-  - Backend (Python/Node.js microservices)
-- System uses Azure Container Registry (ACR) for image storage
+  - Backend (Python microservices)
+- System uses container registry for image storage
 - System implements container image versioning and tagging
-- System scans container images for vulnerabilities
 - System implements automated rollback on deployment failures
 
 ---
@@ -233,14 +215,14 @@ title: Functional Requirements
 #### FR-1.9.1: Conversation Storage
 
 - System stores conversation history in a persistent database
-- System implements data retention policies (e.g., 90 days)
+- System implements data retention policies
 - System allows users to export their conversation history
-- System supports GDPR right-to-be-forgotten requests
+- System supports regional data privacy regulations (right-to-be-forgotten requests)
 
 #### FR-1.9.2: File Storage
 
-- System stores uploaded files in Azure Blob Storage
-- System implements file lifecycle management (auto-deletion after X days)
+- System stores uploaded files in cloud object storage
+- System implements file lifecycle management with automatic cleanup
 - System enforces storage quotas per user
 
 ---

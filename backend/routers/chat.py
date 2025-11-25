@@ -1,10 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from langfuse.decorators import observe, langfuse_context
 from langfuse.openai import AzureOpenAI
+import logging
 
 from config import settings
 from schemas import QuestionRequest, AnswerResponse
 from prompts import CHAT_SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 

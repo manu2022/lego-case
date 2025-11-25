@@ -15,15 +15,15 @@ title: Non-Functional Requirements
 
 #### NFR-2.1.1: Response Time
 
-- System provides AI responses with P95 latency < 10 seconds for simple queries
-- System provides AI responses with P95 latency < 20 seconds for complex queries with file processing
-- Router makes agent selection decisions in < 500ms
+- System provides AI responses with acceptable latency for simple queries
+- System provides AI responses with reasonable latency for complex queries with file processing
+- Router makes agent selection decisions quickly
 
 #### NFR-2.1.2: Throughput
 
-- System supports at least 100 concurrent users
-- System handles at least 400 requests per minute (RPM)
-- System supports 300K tokens per minute
+- System supports a reasonable number of concurrent users
+- System can handle a feasible amount of requests per minute
+- System supports adequate token throughput for organizational needs
 - System scales horizontally to accommodate traffic spikes
 
 #### NFR-2.1.3: Streaming
@@ -41,11 +41,12 @@ title: Non-Functional Requirements
 
 #### NFR-2.2.2: Database Scalability
 
-- PostgreSQL database supports read replicas for query load distribution
+- Database supports read replicas for query load distribution
 - System partitions large tables for improved query performance (possibly per business units)
 
 #### NFR-2.2.3: Caching Strategy
 
+- System implements user session cache for faster rendering
 - System implements distributed caching to reduce database load
 
 #### NFR-2.2.4: Future Growth
@@ -59,12 +60,10 @@ title: Non-Functional Requirements
 
 #### NFR-2.3.1: Uptime
 
-- System maintains 90% uptime, since it is not critical
-- System schedules maintenance windows during off-peak hours
+- System maintains high uptime appropriate for non-critical business operations
 
 #### NFR-2.3.3: Data Durability
 
-- System ensures zero data loss for conversation history
 - System implements database backups
 
 #### NFR-2.3.4: Error Handling
@@ -84,22 +83,22 @@ title: Non-Functional Requirements
 
 #### NFR-2.4.2: Data Protection
 
-- System complies with GDPR
-- System encrypts all PII using AES-256 encryption
+- System complies with regional data protection regulations (GDPR for Europe, PIPL for China, state-specific laws for US)
+- System encrypts all PII with industry-standard encryption
 - System never logs sensitive data (passwords, PII, API keys)
 
 #### NFR-2.4.3: Network Security
 
-- System implements Web Application Firewall
-- System enforces HTTPS for all communications
-- System implements rate limiting
+
+- System enforces HTTPS/TLS for all communications
+- System implements rate limiting to prevent abuse
+- System restricts access to corporate network (IP allowlisting, VPN)
 - System blocks suspicious IP addresses automatically
+- System implements DDoS protection
 
 #### NFR-2.4.5: Audit & Compliance
 
-- System maintains comprehensive audit logs
-- System tracks all data access and modifications
-- System supports compliance audits and reporting
+- System maintains audit logs and tracks all data access and modifications
 
 ---
 
@@ -110,17 +109,13 @@ title: Non-Functional Requirements
 - UI is intuitive and requires no training for standard users
 - UI is responsive and supports mobile, tablet, and desktop devices
 
-#### NFR-2.5.3: Internationalization (Future)
-
-- Architecture supports multi-language capabilities
-
 ---
 
 ### 2.6 Maintainability
 
 #### NFR-2.6.1: Code Quality
 
-- System undergoes mandatory code reviews for all changes
+- System has mandatory code reviews for all changes
 - System maintains documentation for all APIs and services
 
 #### NFR-2.6.2: Monitoring & Debugging
@@ -155,15 +150,15 @@ title: Non-Functional Requirements
 #### NFR-2.8.2: Cost Monitoring
 
 - System tracks costs per user, per model, per service
-- System provides cost dashboards via Langfuse and Azure Cost Management
+- System provides cost dashboards for monitoring and analysis
 - System alerts when costs exceed budgets
 - System implements cost allocation tags for all resources
 
 #### NFR-2.8.3: LLM Cost Optimization
 
-- System uses appropriate models for task complexity
-- Router is a lightweight SLM to minimize routing costs
-- System implements prompt caching where supported
+- System uses appropriate models for task complexity (routing to cost-effective models when possible)
+- Router uses lightweight models to minimize routing costs
+- System implements caching strategies to reduce redundant LLM calls
 
 ---
 
@@ -175,22 +170,22 @@ title: Non-Functional Requirements
 
 #### NFR-2.9.2: Regulatory Compliance
 
-- System complies with GDPR (General Data Protection Regulation)
-- System implements right to access, rectification, and erasure
-
-#### NFR-2.9.3: Content Moderation
-
-- System complies with organizational content policies
-- System filters illegal or harmful content
+- System complies with applicable regional regulations (GDPR for Europe, PIPL for China, CCPA/state laws for US)
+- System implements right to access, rectification, and erasure as required by applicable laws
+- System adapts to jurisdiction-specific requirements based on data residency
 
 ---
 
 ### 2.10 Testing
 
-- System runs tests; if tests are not passed, solution cannot be deployed
-- System supports A/B testing for prompt versioning among different models
-- System includes document of reference to extract context answers
-- System includes tests for the router to redirect to the right agent
+#### NFR-2.10.1: Unit Tests
+
+#### NFR-2.10.2: Integration Tests
+
+#### NFR-2.10.3: Performance Tests
+
+#### NFR-2.10.4: A/B Testing
+
 
 ---
 
