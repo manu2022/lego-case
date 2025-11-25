@@ -13,21 +13,23 @@
     <link rel="stylesheet" href="{{ '/assets/css/mermaid-custom.css' | relative_url }}">
     {% include head-custom.html %}
     
-    <!-- Mermaid JS for diagram rendering -->
-    <script type="module">
-      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-      mermaid.initialize({ 
-        startOnLoad: true, 
-        theme: 'default',
-        flowchart: {
-          useMaxWidth: true,
-          htmlLabels: true,
-          curve: 'basis'
-        }
-      });
-    </script>
   </head>
   <body>
+    <!-- Mermaid JS for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        mermaid.initialize({ 
+          startOnLoad: true, 
+          theme: 'default',
+          flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          }
+        });
+      });
+    </script>
     <a id="skip-to-content" href="#content">Skip to the content.</a>
 
     <header class="page-header" role="banner">
