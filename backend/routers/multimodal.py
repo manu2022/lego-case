@@ -5,10 +5,14 @@ from azure.core.credentials import AzureKeyCredential
 from langfuse import Langfuse
 from datetime import datetime
 import base64
+import logging
+import fitz  # PyMuPDF
 
 from config import settings
 from schemas import MultimodalResponse
 from prompts import MULTIMODAL_SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/multimodal", tags=["multimodal"])
 
@@ -23,6 +27,37 @@ langfuse = Langfuse(
     public_key=settings.langfuse_public_key,
     host=settings.langfuse_base_url
 )
+
+
+def pdf_to_images(pdf_bytes: bytes, max_pages: int = 5) -> list[tuple[str, str]]:
+    """Convert PDF pages to base64-encoded images
+    
+    Args:
+        pdf_bytes: PDF file content as bytes
+        max_pages: Maximum number of pages to process
+        
+    Returns:
+        List of tuples (base64_image_data, image_format)
+    """
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        images = []
+        
+        for page_num in range(min(len(doc), max_pages)):
+            page = doc[page_num]
+            # Render page at 2x resolution for better quality
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+            img_data = pix.tobytes("png")
+            img_base64 = base64.b64encode(img_data).decode("utf-8")
+            images.append((img_base64, "png"))
+            
+        doc.close()
+        logger.info(f"Converted {len(images)} pages from PDF")
+        return images
+        
+    except Exception as e:
+        logger.error(f"Error converting PDF to images: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to process PDF: {str(e)}")
 
 
 def ask_multimodal_question(question: str, image_data: str, image_format: str) -> tuple[str, dict]:
@@ -58,8 +93,8 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
     }
     
     langfuse.generation(
-        name="phi4_multimodal_completion",
-        model="Phi-4-multimodal-instruct",
+        name="multimodal_completion",
+        model=settings.multimodal_model_name,
         model_parameters={},
         input=[
             {"role": "system", "content": MULTIMODAL_SYSTEM_PROMPT},

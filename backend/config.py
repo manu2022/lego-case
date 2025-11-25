@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     
     # API Keys
     openai_api_key: str
-    claude_api_key: str
+    claude_api_key: str = ""  # Optional, only needed for router functionality
     langfuse_secret_key: str
     langfuse_public_key: str
     langfuse_base_url: str  # Must come from env - no default!
@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Model Configuration
     chat_model_name: str = "gpt-5-mini"  # Text chat model
     multimodal_model_name: str = "gpt-5-mini"  # Multimodal model
+    claude_deployment_name: str = "claude-haiku-4-5"  # Claude model for routing (default)
     
     # Azure OpenAI Configuration
     azure_openai_endpoint: str = "https://foundry-service-lego.openai.azure.com"
@@ -35,6 +36,9 @@ class Settings(BaseSettings):
     
     # Azure AI Foundry Configuration
     azure_ai_foundry_endpoint: str = "https://foundry-service-lego.cognitiveservices.azure.com/models"
+    
+    # Claude Configuration (defaults to Azure AI Foundry endpoint)
+    claude_endpoint: str = "https://manue-mg9c9a0z-eastus2.services.ai.azure.com/anthropic/"
 
 
 # Load settings with error handling
