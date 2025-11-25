@@ -2,17 +2,17 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 from langfuse.decorators import observe
-from langfuse.openai import AzureOpenAI
+from anthropic import AnthropicFoundry
 import json
 import base64
 from config import settings
 
 router_api = APIRouter(prefix="/router", tags=["router"])
 
-azure_client = AzureOpenAI(
-    api_key=settings.openai_api_key,
-    api_version="2024-02-01",
-    azure_endpoint="https://foundry-service-lego.openai.azure.com"
+# Claude client for intelligent routing
+claude_client = AnthropicFoundry(
+    api_key=settings.claude_api_key,
+    base_url=settings.claude_endpoint
 )
 
 ROUTER_SYSTEM_PROMPT = """You are a query router. Classify queries and remove PII.
@@ -53,22 +53,21 @@ class FinalResponse(BaseModel):
 
 @observe()
 def classify_and_sanitize(query: str) -> RouterResponse:
-    """Classify query and remove PII using LLM"""
+    """Classify query and remove PII using Claude"""
     
-    messages = [
-        {"role": "system", "content": ROUTER_SYSTEM_PROMPT},
-        {"role": "user", "content": query}
-    ]
+    user_message = f"{ROUTER_SYSTEM_PROMPT}\n\nUser query: {query}"
     
     print(f"🔀 Routing query: {query[:50]}...")
     
-    completion = azure_client.chat.completions.create(
-        model="gpt-5-mini",
-        messages=messages,
-        response_format={"type": "json_object"}
+    message = claude_client.messages.create(
+        model=settings.claude_deployment_name,
+        messages=[
+            {"role": "user", "content": user_message}
+        ],
+        max_tokens=1024
     )
     
-    response_text = completion.choices[0].message.content
+    response_text = message.content[0].text
     print(f"📋 Router response: {response_text}")
     
     try:
@@ -83,15 +82,19 @@ def classify_and_sanitize(query: str) -> RouterResponse:
 @observe()
 async def route_query(
     question: str = Form(..., description="Your question"),
-    image: Optional[UploadFile] = File(None, description="Optional image file")
+    image: UploadFile = File(default=None, description="Optional image file")
 ):
     """
     Single endpoint for all queries - with or without images
     
-    - Classifies query intent
-    - Removes PII
-    - Routes to appropriate agent (text or multimodal)
+    - Classifies query intent (based on text only)
+    - Removes PII from query
+    - Routes based on: agent classification + image presence
+      * Text only → qa_agent
+      * Text + image → multimodal_agent
     - Returns answer or irrelevant message
+    
+    Note: Image is NOT sent to router - only used for routing decision
     """
     
     has_image = image is not None

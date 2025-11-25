@@ -13,10 +13,15 @@ class Settings(BaseSettings):
     )
     
     openai_api_key: str
+    claude_api_key: str
     langfuse_secret_key: str
     langfuse_public_key: str
     langfuse_base_url: str  # Must come from env - no default!
     cors_origins: str = "*"  # Comma-separated list of allowed origins
+    
+    # Claude/Anthropic Configuration
+    claude_endpoint: str = "https://manue-mg9c9a0z-eastus2.services.ai.azure.com/anthropic/"
+    claude_deployment_name: str = "claude-haiku-4-5"
 
 
 # Load settings with error handling
@@ -35,6 +40,7 @@ except Exception as e:
     print(f"❌ Error loading configuration: {e}")
     print(f"   Make sure these environment variables are set:")
     print(f"   - OPENAI_API_KEY")
+    print(f"   - CLAUDE_API_KEY")
     print(f"   - LANGFUSE_SECRET_KEY")
     print(f"   - LANGFUSE_PUBLIC_KEY")
     print(f"   - LANGFUSE_BASE_URL")
