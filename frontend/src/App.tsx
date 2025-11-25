@@ -29,7 +29,6 @@ function App() {
         imagePreview={imagePreview}
         question={question}
         loading={loading}
-        hasImage={!!image}
         fileName={fileName}
         onImageChange={handleImageChange}
         onRemoveImage={removeImage}

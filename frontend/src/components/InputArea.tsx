@@ -4,7 +4,6 @@ interface InputAreaProps {
   imagePreview: string
   question: string
   loading: boolean
-  hasImage: boolean
   fileName?: string
   onImageChange: (file: File | null) => void
   onRemoveImage: () => void
@@ -16,7 +15,6 @@ export const InputArea = ({
   imagePreview,
   question,
   loading,
-  hasImage,
   fileName,
   onImageChange,
   onRemoveImage,
