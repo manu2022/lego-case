@@ -24,17 +24,13 @@ Define the problem from multiple perspectives, identify risks (value, usability,
 ### Planning
 Use story mapping and find reference customers (6-8 loyal early adopters)
 
-## Value Risk
-**Will employees actually use this?** There's a risk that employees won't find the chatbot valuable enough to change their existing workflows. Without clear use cases and demonstrated value, adoption will be low.
+ - Value Risk: **Will employees actually use this?** There's a risk that employees won't find the chatbot valuable enough to change their existing workflows. Without clear use cases and demonstrated value, adoption will be low.
 
-## Usability Risk
-**Is it intuitive enough?** If the interface is clunky, file uploads are confusing, or response times are slow, employees will abandon it for familiar tools like Google or existing solutions. The UX must match or exceed consumer chatbots (ChatGPT/Claude) that employees already know.
+ - Usability Risk: **Is it intuitive enough?** If the interface is clunky, file uploads are confusing, or response times are slow, employees will abandon it for familiar tools like Google or existing solutions. The UX must match or exceed consumer chatbots (ChatGPT/Claude) that employees already know.
 
-## Feasibility Risk
-**Can we build and maintain this?** Technical challenges include managing and fulfilling functional and non-functional requirements and maintaining system reliability. The team needs adequate skills in LLMOps, cloud infrastructure, and AI systems.
+ - Feasibility Risk: **Can we build and maintain this?** Technical challenges include managing and fulfilling functional and non-functional requirements and maintaining system reliability. The team needs adequate skills in LLMOps, cloud infrastructure, and AI systems.
 
-## Business Viability Risk
-**Is this financially sustainable?** LLM API costs can skyrocket with heavy usage, making the per-employee cost unpredictable. Without usage controls, cost monitoring, and clear ROI metrics, the project could become financially unsustainable or require constant budget justification.
+ - Business Viability Risk: **Is this financially sustainable?** LLM API costs can skyrocket with heavy usage, making the per-employee cost unpredictable. Without usage controls, cost monitoring, and clear ROI metrics, the project could become financially unsustainable or require constant budget justification.
 
 ### Ideation
 Customer interviews, concierge testing, observation, hack days
@@ -47,7 +43,7 @@ Build low-fidelity versions (feasibility, user, live-data, or hybrid prototypes)
 ### Testing
 Validate all four risks through fake door tests, qualitative interviews, A/B tests, and stakeholder reviews
 
-![Inspired Book](./docs/assets/inspired_book.jpg)
+![Inspired Book](assets/inspired_book.jpg)
 
 The information has been inspired by this book
 
