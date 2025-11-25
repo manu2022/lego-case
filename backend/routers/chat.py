@@ -1,13 +1,13 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from langfuse.decorators import observe, langfuse_context
 from langfuse.openai import AzureOpenAI
-from config import settings
 
+from config import settings
+from schemas import QuestionRequest, AnswerResponse
+from prompts import CHAT_SYSTEM_PROMPT
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-# Create Azure OpenAI client wrapped with Langfuse
 azure_client = AzureOpenAI(
     api_key=settings.openai_api_key,
     api_version="2024-02-01",
@@ -17,28 +17,13 @@ azure_client = AzureOpenAI(
 deployment_name = "gpt-5-mini"
 
 
-class QuestionRequest(BaseModel):
-    question: str
-
-
-class AnswerResponse(BaseModel):
-    question: str
-    answer: str
-
-
 @observe()
 def ask_question(question: str) -> str:
     """Ask a question and get an answer from the LLM"""
     
     messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful assistant that provides accurate and concise answers."
-        },
-        {
-            "role": "user",
-            "content": question,
-        }
+        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+        {"role": "user", "content": question}
     ]
     
     print(f"🚀 Starting LLM call with question: {question[:50]}...")

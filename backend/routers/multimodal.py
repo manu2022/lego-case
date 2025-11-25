@@ -1,35 +1,28 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage, TextContentItem, ImageContentItem, ImageUrl
 from azure.core.credentials import AzureKeyCredential
 from langfuse import Langfuse
 import time
 import base64
-from config import settings
 
+from config import settings
+from schemas import MultimodalResponse
+from prompts import MULTIMODAL_SYSTEM_PROMPT
 
 router = APIRouter(prefix="/multimodal", tags=["multimodal"])
 
-# Initialize Azure AI Inference client for multimodal
 client = ChatCompletionsClient(
     endpoint="https://foundry-service-lego.cognitiveservices.azure.com/models",
     credential=AzureKeyCredential(settings.openai_api_key),
     model="Phi-4-multimodal-instruct"
 )
 
-# Initialize Langfuse client
 langfuse = Langfuse(
     secret_key=settings.langfuse_secret_key,
     public_key=settings.langfuse_public_key,
     host=settings.langfuse_base_url
 )
-
-
-class MultimodalResponse(BaseModel):
-    question: str
-    answer: str
-    usage: dict
 
 
 def ask_multimodal_question(question: str, image_data: str, image_format: str) -> tuple[str, dict]:
@@ -50,16 +43,14 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
     from datetime import datetime
     start_time = datetime.now()
     
-    # Make the API call
     response = client.complete(
         messages=[
-            SystemMessage("You are a helpful assistant that can analyze images and answer questions about them."),
+            SystemMessage(MULTIMODAL_SYSTEM_PROMPT),
             UserMessage(content=[
                 TextContentItem(text=question),
                 ImageContentItem(image_url=data_url)
             ]),
         ],
- 
     )
     
     # Record end time
@@ -74,16 +65,12 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
         "total": response.usage.total_tokens
     }
     
-    # Log to Langfuse with proper structure
     langfuse.generation(
         name="phi4_multimodal_completion",
         model="Phi-4-multimodal-instruct",
-        model_parameters={
-          #  "temperature": 0.7,
-           # "max_tokens": 2048
-        },
+        model_parameters={},
         input=[
-            {"role": "system", "content": "You are a helpful assistant that can analyze images and answer questions about them."},
+            {"role": "system", "content": MULTIMODAL_SYSTEM_PROMPT},
             {"role": "user", "content": question}
         ],
         output=answer,
