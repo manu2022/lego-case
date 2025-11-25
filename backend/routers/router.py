@@ -70,11 +70,19 @@ def classify_and_sanitize(query: str) -> RouterResponse:
     response_text = message.content[0].text
     print(f"📋 Router response: {response_text}")
     
+    # Strip markdown code blocks if present
+    if response_text.strip().startswith("```"):
+        lines = response_text.strip().split("\n")
+        # Remove first line (```json or ```) and last line (```)
+        response_text = "\n".join(lines[1:-1])
+        print(f"📋 Cleaned response: {response_text}")
+    
     try:
         response_data = json.loads(response_text)
         return RouterResponse(**response_data)
     except (json.JSONDecodeError, ValueError) as e:
         print(f"❌ Failed to parse router response: {e}")
+        print(f"   Raw response: {response_text}")
         raise HTTPException(status_code=500, detail="Failed to classify query")
 
 
@@ -82,7 +90,7 @@ def classify_and_sanitize(query: str) -> RouterResponse:
 @observe()
 async def route_query(
     question: str = Form(..., description="Your question"),
-    image: UploadFile = File(default=None, description="Optional image file")
+    image: Optional[UploadFile] = File(None)
 ):
     """
     Single endpoint for all queries - with or without images
