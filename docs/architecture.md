@@ -75,7 +75,7 @@ In the book **"Fundamentals of Software Architecture"** by Mark Richards and Nea
 
 ## Core Agent Components
 
-### 1. Intelligent Router (SML)
+1. Intelligent Router (SML)
 
 The router uses a Small Language Model to:
 - Classify incoming queries by intent and complexity
@@ -84,40 +84,31 @@ The router uses a Small Language Model to:
 - Filter malicious or harmful queries
 
 
-### 2. Chat Agent (Text-Only Queries)
+2. Chat Agent (Text-Only Queries): Handles standard text-based conversational queries using Azure models.
 
-Handles standard text-based conversational queries using Azure models.
+3. Multimodal Agent (Vision + Text): Processes queries involving images, documents, or other visual content using Azure's multimodal models.
 
-
-### 3. Multimodal Agent (Vision + Text)
-
-Processes queries involving images, documents, or other visual content using Azure's multimodal models.
-
-### 4. Web Agent (Real-Time Information)
-
-Retrieves real-time information from the web to answer queries requiring current data.
+4. Web Agent (Real-Time Information): Retrieves real-time information from the web to answer queries requiring current data.
 
 Examples:
 <div align="center">
-  <img src="assets/router_1.png" alt="Router Architecture" style="max-width: 800px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
-  <p><em>Intelligent Router: Query classification and PII detection flow</em></p>
+  <img src="assets/router_1.png" alt="Router Architecture" style="max-width: 600px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
+  <p><em>Intelligent Router: Query classification </em></p>
 </div>
 
 <div align="center">
-  <img src="assets/router_2.png" alt="Chat Agent Flow" style="max-width: 800px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
-  <p><em>Chat Agent: Text-based query processing pipeline</em></p>
+  <img src="assets/router_2.png" alt="Chat Agent Flow" style="max-width: 600px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
+  <p><em>Context agent with and PII detection flow </em></p>
 </div>
 
-
 <div align="center">
-  <img src="assets/router_3.png" alt="Multimodal Agent Flow" style="max-width: 800px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
-  <p><em>Multimodal Agent: File upload and vision processing pipeline</em></p>
+  <img src="assets/router_3.png" alt="Multimodal Agent Flow" style="max-width: 600px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
+  <p><em> Web agent  for real time information </em></p>
 </div>
 
-
 <div align="center">
-  <img src="assets/router_4.png" alt="Security and Observability" style="max-width: 800px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
-  <p><em>Security layer: PII redaction, monitoring, and rate limiting</em></p>
+  <img src="assets/router_4.png" alt="Security and Observability" style="max-width: 600px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
+  <p><em>Security: Irrelevant and attacks</em></p>
 </div>
 
 
