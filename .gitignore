@@ -29,3 +29,6 @@ venv/
 .idea/
 *.swp
 *.swoterraform/tfplan
+backend-logs/
+*.log
+*.zip
