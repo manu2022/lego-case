@@ -1,14 +1,19 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage, TextContentItem, ImageContentItem, ImageUrl
 from azure.core.credentials import AzureKeyCredential
 from langfuse import Langfuse
-import time
+from datetime import datetime
 import base64
-import io
+import logging
 from typing import Optional
+
 from config import settings
+from schemas import MultimodalResponse
+from prompts import MULTIMODAL_SYSTEM_PROMPT
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Try to import PDF processing libraries
 try:
@@ -16,7 +21,7 @@ try:
     PDF_SUPPORT = True
 except ImportError:
     PDF_SUPPORT = False
-    print("⚠️  PyMuPDF not installed. PDF support disabled. Install with: pip install PyMuPDF")
+    logger.warning("PyMuPDF not installed. PDF support disabled. Install with: pip install PyMuPDF")
 
 
 router = APIRouter(prefix="/multimodal", tags=["multimodal"])
@@ -34,14 +39,6 @@ langfuse = Langfuse(
     public_key=settings.langfuse_public_key,
     host=settings.langfuse_base_url
 )
-
-
-class MultimodalResponse(BaseModel):
-    question: str
-    answer: str
-    usage: dict
-    file_type: str = "image"
-    pages_processed: Optional[int] = None
 
 
 def pdf_to_images(pdf_bytes: bytes, max_pages: int = 5) -> list[tuple[str, str]]:
@@ -84,65 +81,52 @@ def pdf_to_images(pdf_bytes: bytes, max_pages: int = 5) -> list[tuple[str, str]]
         
         pdf_document.close()
         
-        print(f"📄 Converted {num_pages} PDF page(s) to images")
+        logger.info(f"Converted {num_pages} PDF page(s) to images")
         return images
         
     except Exception as e:
+        logger.error(f"Error processing PDF: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error processing PDF: {str(e)}")
 
 
 def ask_multimodal_question(question: str, image_data: str, image_format: str) -> tuple[str, dict]:
     """Ask a question about an image using the multimodal model"""
     
-    # Create a Langfuse trace
     trace = langfuse.trace(
         name="multimodal_question",
         metadata={"model": "Phi-4-multimodal-instruct"}
     )
     
-    # Create data URL from base64 image
     data_url = ImageUrl(url=f"data:image/{image_format};base64,{image_data}")
     
-    print(f"🚀 Starting multimodal LLM call with question: {question[:50]}...")
-    
-    # Record start time with timestamp
-    from datetime import datetime
+    logger.info(f"Starting multimodal LLM call. Question: {question[:50]}...")
     start_time = datetime.now()
     
-    # Make the API call
     response = client.complete(
         messages=[
-            SystemMessage("You are a helpful assistant that can analyze images and answer questions about them."),
+            SystemMessage(MULTIMODAL_SYSTEM_PROMPT),
             UserMessage(content=[
                 TextContentItem(text=question),
                 ImageContentItem(image_url=data_url)
             ]),
         ],
- 
     )
     
-    # Record end time
     end_time = datetime.now()
-    
     answer = response.choices[0].message.content
     
-    # Create usage dict
     usage = {
         "input": response.usage.prompt_tokens,
         "output": response.usage.completion_tokens,
         "total": response.usage.total_tokens
     }
     
-    # Log to Langfuse with proper structure
     langfuse.generation(
         name="phi4_multimodal_completion",
         model="Phi-4-multimodal-instruct",
-        model_parameters={
-          #  "temperature": 0.7,
-           # "max_tokens": 2048
-        },
+        model_parameters={},
         input=[
-            {"role": "system", "content": "You are a helpful assistant that can analyze images and answer questions about them."},
+            {"role": "system", "content": MULTIMODAL_SYSTEM_PROMPT},
             {"role": "user", "content": question}
         ],
         output=answer,
@@ -158,11 +142,11 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
     )
     
     latency = (end_time - start_time).total_seconds()
-    print(f"✅ Multimodal LLM Response received")
-    print(f"   Input tokens: {usage['input']}")
-    print(f"   Output tokens: {usage['output']}")
-    print(f"   Total tokens: {usage['total']}")
-    print(f"   Latency: {latency:.2f}s")
+    logger.info(
+        f"Multimodal LLM response received. "
+        f"Tokens: {usage['input']}/{usage['output']}/{usage['total']} (in/out/total). "
+        f"Latency: {latency:.2f}s"
+    )
     
     return answer, usage
 
@@ -181,10 +165,8 @@ async def ask_multimodal_with_file(
     For PDFs with multiple pages, all pages are analyzed together.
     """
     
-    print(f"\n{'='*80}")
-    print(f"📥 New multimodal request with file upload: {question}")
-    print(f"📎 File: {image.filename} ({image.content_type})")
-    print(f"{'='*80}\n")
+    logger.info(f"New multimodal request. File: {image.filename} ({image.content_type})")
+    logger.debug(f"Question: {question}")
     
     try:
         file_bytes = await image.read()
@@ -198,49 +180,34 @@ async def ask_multimodal_with_file(
         )
         
         if is_pdf:
-            # Process PDF
-            print("📄 Detected PDF file - converting to images...")
+            logger.info("Processing PDF file")
             file_type = "pdf"
             
             pdf_images = pdf_to_images(file_bytes, max_pages=5)
             pages_processed = len(pdf_images)
             
-            # For multi-page PDFs, we'll analyze each page and combine results
             if len(pdf_images) == 1:
-                # Single page - process normally
                 image_data, image_format = pdf_images[0]
-                answer, usage = ask_multimodal_question(
-                    question,
-                    image_data,
-                    image_format
-                )
+                answer, usage = ask_multimodal_question(question, image_data, image_format)
             else:
-                # Multiple pages - process each and combine
-                print(f"📚 Processing {len(pdf_images)} pages...")
+                logger.info(f"Processing multi-page PDF with {len(pdf_images)} pages")
                 all_answers = []
                 total_usage = {"input": 0, "output": 0, "total": 0}
                 
                 for idx, (img_data, img_format) in enumerate(pdf_images, 1):
                     page_question = f"Page {idx} of the document: {question}"
-                    answer, usage = ask_multimodal_question(
-                        page_question,
-                        img_data,
-                        img_format
-                    )
+                    answer, usage = ask_multimodal_question(page_question, img_data, img_format)
                     all_answers.append(f"**Page {idx}:**\n{answer}")
                     
-                    # Accumulate usage
                     total_usage["input"] += usage["input"]
                     total_usage["output"] += usage["output"]
                     total_usage["total"] += usage["total"]
                 
-                # Combine all answers
                 answer = "\n\n".join(all_answers)
                 usage = total_usage
                 
         else:
-            # Process regular image
-            print("🖼️  Detected image file")
+            logger.info("Processing image file")
             image_data = base64.b64encode(file_bytes).decode("utf-8")
             
             # Detect image format from content type
@@ -255,17 +222,10 @@ async def ask_multimodal_with_file(
                 elif "webp" in image.content_type:
                     image_format = "webp"
             
-            answer, usage = ask_multimodal_question(
-                question,
-                image_data,
-                image_format
-            )
+            answer, usage = ask_multimodal_question(question, image_data, image_format)
         
-        print(f"\n{'='*80}")
-        print(f"🔄 Flushing Langfuse events...")
         langfuse.flush()
-        print(f"✅ Flush complete - check Langfuse dashboard!")
-        print(f"{'='*80}\n")
+        logger.info("Request completed successfully")
         
         return MultimodalResponse(
             question=question,
@@ -274,8 +234,10 @@ async def ask_multimodal_with_file(
             file_type=file_type,
             pages_processed=pages_processed
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"❌ Error: {e}")
+        logger.error(f"Error processing multimodal question: {str(e)}", exc_info=True)
         langfuse.flush()
         raise HTTPException(status_code=500, detail=f"Error processing multimodal question: {str(e)}")
 

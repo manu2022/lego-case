@@ -1,13 +1,16 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from langfuse.decorators import observe, langfuse_context
 from langfuse.openai import AzureOpenAI
-from config import settings
+import logging
 
+from config import settings
+from schemas import QuestionRequest, AnswerResponse
+from prompts import CHAT_SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-# Create Azure OpenAI client wrapped with Langfuse
 azure_client = AzureOpenAI(
     api_key=settings.openai_api_key,
     api_version="2024-02-01",
@@ -17,31 +20,16 @@ azure_client = AzureOpenAI(
 deployment_name = "gpt-5-mini"
 
 
-class QuestionRequest(BaseModel):
-    question: str
-
-
-class AnswerResponse(BaseModel):
-    question: str
-    answer: str
-
-
 @observe()
 def ask_question(question: str) -> str:
     """Ask a question and get an answer from the LLM"""
     
     messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful assistant that provides accurate and concise answers."
-        },
-        {
-            "role": "user",
-            "content": question,
-        }
+        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+        {"role": "user", "content": question}
     ]
     
-    print(f"🚀 Starting LLM call with question: {question[:50]}...")
+    logger.info(f"Starting LLM call. Question: {question[:50]}...")
     
     completion = azure_client.chat.completions.create(
         model=deployment_name,
@@ -50,11 +38,10 @@ def ask_question(question: str) -> str:
     
     answer = completion.choices[0].message.content
     
-    print(f"✅ LLM Response received")
-    print(f"   Input tokens: {completion.usage.prompt_tokens}")
-    print(f"   Output tokens: {completion.usage.completion_tokens}")
-    print(f"   Total tokens: {completion.usage.total_tokens}")
-    print(f"   ℹ️  Langfuse wrapper should have auto-captured all this!")
+    logger.info(
+        f"LLM response received. "
+        f"Tokens: {completion.usage.prompt_tokens}/{completion.usage.completion_tokens}/{completion.usage.total_tokens} (in/out/total)"
+    )
     
     return answer
 
@@ -64,25 +51,20 @@ def ask_question(question: str) -> str:
 async def ask(request: QuestionRequest):
     """Ask a question and get an answer from the LLM"""
     
-    print(f"\n{'='*80}")
-    print(f"📥 New request received: {request.question}")
-    print(f"{'='*80}\n")
+    logger.info(f"New chat request received")
+    logger.debug(f"Question: {request.question}")
     
     try:
         answer = ask_question(request.question)
-        
-        print(f"\n{'='*80}")
-        print(f"🔄 Flushing Langfuse events...")
         langfuse_context.flush()
-        print(f"✅ Flush complete - check Langfuse dashboard!")
-        print(f"{'='*80}\n")
+        logger.info("Request completed successfully")
         
         return AnswerResponse(
             question=request.question,
             answer=answer
         )
     except Exception as e:
-        print(f"❌ Error: {e}")
+        logger.error(f"Error processing question: {str(e)}", exc_info=True)
         langfuse_context.flush()
         raise HTTPException(status_code=500, detail=f"Error processing question: {str(e)}")
 
