@@ -92,22 +92,22 @@ The router uses a Small Language Model to:
 
 Examples:
 <div align="center">
-  <img src="assets/router_1.png" alt="Router Architecture" style="max-width: 600px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
+  <img src="assets/router_1.png" alt="Router Architecture" style="max-width: 400px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
   <p><em>Intelligent Router: Query classification </em></p>
 </div>
 
 <div align="center">
-  <img src="assets/router_2.png" alt="Chat Agent Flow" style="max-width: 600px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
+  <img src="assets/router_2.png" alt="Chat Agent Flow" style="max-width: 400px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
   <p><em>Context agent with and PII detection flow </em></p>
 </div>
 
 <div align="center">
-  <img src="assets/router_3.png" alt="Multimodal Agent Flow" style="max-width: 600px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
+  <img src="assets/router_3.png" alt="Multimodal Agent Flow" style="max-width: 400px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
   <p><em> Web agent  for real time information </em></p>
 </div>
 
 <div align="center">
-  <img src="assets/router_4.png" alt="Security and Observability" style="max-width: 600px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
+  <img src="assets/router_4.png" alt="Security and Observability" style="max-width: 400px; width: 100%; border: 1px solid #ddd; margin: 20px 0;">
   <p><em>Security: Irrelevant and attacks</em></p>
 </div>
 
