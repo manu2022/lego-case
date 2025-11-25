@@ -117,7 +117,6 @@ Examples:
 **PII Protection:**
 - Router-level PII detection before reaching LLM APIs
 - Secure storage in Azure Key Vault
-- Re-injection for user-facing responses
 
 **Observability (Langfuse):**
 - Comprehensive trace logging
@@ -187,10 +186,7 @@ flowchart TD
     J --> N[LLM Response]
     K --> N
     L --> N
-    N --> O{PII Re-injection}
-    O -->|PII Present| P[Retrieve from Key Vault]
-    O -->|No PII| Q[Format Response]
-    P --> Q
+    N --> Q[Format Response]
     Q --> R[Response to Frontend]
     R --> S[Display to User]
     
@@ -219,9 +215,8 @@ flowchart TD
 5. **PII Redaction** → Store sensitive data in Key Vault (if detected)
 6. **Specialized Agent** → Route to appropriate agent (Chat, Multimodal, or Web)
 7. **LLM Processing** → Generate response using Azure OpenAI models
-8. **PII Re-injection** → Retrieve and insert PII back (if applicable)
-9. **Response** → Format and return to frontend
-10. **Display** → Show response to user
+8. **Response** → Format and return to frontend
+9. **Display** → Show response to user
 
 **Observability**: Every step traced through Langfuse with correlation IDs and logged to Application Insights
 
@@ -252,6 +247,43 @@ flowchart TD
 - **State Storage**: Azure Storage Account (remote backend)
 - **Modules**: Reusable components for each Azure resource
 - **Version Control**: Git with pull request workflow
+
+---
+
+## UI Components
+
+The frontend provides an intuitive chat interface built with React and TypeScript, designed for both standard users and developers.
+
+### Core Components
+
+**Chat Interface**
+- Real-time message display with markdown rendering
+- Typing indicators during AI processing
+- Message history with scrollable timeline
+
+**File Attachment System**
+- **File Upload Button**: Attach images, PDFs, documents (PDF, DOCX, TXT, JPG, PNG, CSV)
+- File preview before submission
+- Drag-and-drop support
+- File type and size validation
+
+**Conversation Management**
+- **Sidebar**: Chat history navigation
+  - List of previous conversations
+  - Search through past chats
+  - Delete conversation capability
+  - Resume previous sessions
+
+**Developer Controls**
+- **Settings Button**: Advanced model parameters (Developer role only)
+  - Model selection (GPT-4o, GPT-4o-mini)
+  - Temperature control
+  - Max tokens configuration
+- Mode toggle: Standard vs Developer view
+
+**User Experience Features**
+- Responsive design (mobile, tablet, desktop)
+- Dark/light mode support
 
 ---
 
