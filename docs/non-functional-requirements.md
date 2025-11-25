@@ -76,7 +76,6 @@ title: Non-Functional Requirements
 
 #### NFR-2.4.2: Data Protection
 
-- Complies with regional regulations (GDPR/Europe, PIPL/China, state laws/US)
 - Industry-standard PII encryption
 - No logging of sensitive data (passwords, PII, API keys)
 
