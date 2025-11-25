@@ -75,6 +75,10 @@ resource "azurerm_linux_web_app" "app" {
   # Disable authentication (API requires custom auth if needed)
   auth_settings_v2 {
     auth_enabled = false
+    
+    login {
+      token_store_enabled = false
+    }
   }
   
   # Prevent unnecessary redeployments
@@ -133,6 +137,10 @@ resource "azurerm_linux_web_app" "frontend" {
   # Disable authentication (public frontend)
   auth_settings_v2 {
     auth_enabled = false
+    
+    login {
+      token_store_enabled = false
+    }
   }
   
   # Prevent unnecessary redeployments
