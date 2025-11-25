@@ -1,6 +1,6 @@
 # PeaceCorpGPT: Multimodal Multiagent Chatbot with LLMOps
 
-An intelligent multimodal question-answering system that routes queries to specialized AI models based on content complexity. Built with a multi-agent architecture, the system automatically selects between OpenAI GPT-4o-mini (simple queries) and GPT-4o (complex/multimodal queries), with full observability through Langfuse.
+An intelligent multimodal question-answering system that routes queries to specialized AI agents based on content complexity. Built with a multi-agent architecture, the system has a router that addresses the questions to the right answer, handling PII and sensitive data, with full observability through Langfuse.
 
 ## 📖 Documentation
 
@@ -61,15 +61,15 @@ lego-case/
 ### Prerequisites
 - Python 3.12+ and `uv` package manager
 - Node.js 18+ and npm
-- OpenAI API key
-- (Optional) Langfuse account for observability
+- Azure Cloud subcription
+- Langfuse account for observability
 
 ### Backend Setup
 
 ```bash
 cd backend
-uv sync                    # Install dependencies with uv
-uv run uvicorn app:app --reload  # Run development server
+uv sync                   
+uv run uvicorn app:app --reload 
 ```
 
 The API will be available at:
@@ -80,8 +80,8 @@ The API will be available at:
 
 ```bash
 cd frontend
-npm install               # Install dependencies
-npm run dev              # Run development server
+npm install               
+npm run dev              
 ```
 
 The UI will be available at `http://localhost:5173`
@@ -120,34 +120,24 @@ uv run pytest tests/test_multimodal.py  # Test multimodal endpoint
 | `/multimodal/ask-with-image` | POST | Direct multimodal endpoint (no routing) |
 | `/docs` | GET | Interactive API documentation (Swagger UI) |
 
-Example request for `/router/ask`:
-```json
-{
-  "prompt": "What's in this image?",
-  "image": "base64_encoded_image_string"
-}
-```
+
 
 ## 🐳 Docker Deployment
 
-Both backend and frontend include `Dockerfile` and `deploy.sh` scripts for containerized deployment.
+Both backend and frontend include `Dockerfile` and `deploy.sh` scripts for containerized deployment to azure.
 
 ## Key Features
 
-### Multi-Agent Architecture
-- **Intelligent Router Agent**: Analyzes query complexity and selects optimal model
-- **Simple Query Agent**: Uses GPT-4o-mini for straightforward questions (cost-effective)
-- **Complex Query Agent**: Leverages GPT-4o for advanced reasoning and multimodal tasks
+### Multi-Agent Architecture with Intelligent Router Agent**: Analyzes query complexity and selects optimal agent
 
 ### Multimodal Capabilities
 - **Image + Text Processing**: Upload images with questions for visual understanding
-- **Flexible Input**: Supports text-only queries or combined image-text queries
+- **Flexible Input**: Supports text-only queries or combined image-text queries or oother types as pdf
 - **Base64 Image Encoding**: Efficient image transmission to AI models
 
 ### LLMOps & Observability
 - **Langfuse Integration**: Full request/response tracing and monitoring
 - **Performance Metrics**: Track latency, token usage, and costs per query
-- **Debug Mode**: Detailed logging for development and troubleshooting
 - **A/B Testing Ready**: Infrastructure supports model comparison and experimentation
 
 ### Production-Ready

@@ -2,9 +2,12 @@
 name: Deploy Jekyll with GitHub Pages dependencies preinstalled
 
 on:
-  # Runs on pushes targeting the github-pages branch
+  # Runs on pushes targeting the main or master branch
   push:
-    branches: ["github-pages"]
+    branches: ["main", "master"]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/jekyll-gh-pages.yml'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -40,6 +43,9 @@ jobs:
 
   # Deployment job
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
     steps:
