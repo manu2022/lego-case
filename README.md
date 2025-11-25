@@ -1,373 +1,202 @@
-# Lego Case - Image Question Answering Platform
+# PeaceCorpGPT: Multimodal Multiagent Chatbot with LLMOps
 
-A production-ready full-stack application that allows users to upload images and ask questions about them using Azure OpenAI multimodal capabilities (GPT-4 Vision / Phi-4), with observability powered by Langfuse.
+An intelligent multimodal question-answering system that routes queries to specialized AI models based on content complexity. Built with a multi-agent architecture, the system automatically selects between OpenAI GPT-4o-mini (simple queries) and GPT-4o (complex/multimodal queries), with full observability through Langfuse.
 
-## 🏗️ Architecture
+## 📖 Documentation
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     GitHub Actions                       │
-│       (CI/CD - Auto Deploy on Push to main)             │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│              Azure Container Registry                    │
-│    (Docker images: frontend + backend)                  │
-└────────────┬────────────────────┬───────────────────────┘
-             │                    │
-             ▼                    ▼
-┌────────────────────┐  ┌────────────────────────────────┐
-│  Frontend Web App  │  │     Backend API Web App        │
-│  (React + Vite)    │◄─┤     (FastAPI)                  │
-│  - Image upload    │  │  - POST /multimodal/ask-...    │
-│  - Q&A interface   │  │  - GET  /health                │
-└────────────────────┘  └─────────┬──────────────────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    ▼                           ▼
-         Azure OpenAI (Multimodal)         Langfuse
-         (Vision + Text Processing)    (Observability)
-```
+For detailed architecture, requirements, and design decisions, visit our [GitHub Pages Documentation](https://manu2022.github.io/lego-case/).
 
-**Key Features:**
-- 🔒 **CORS Configured via CI/CD**: Frontend and backend URLs are dynamically linked
-- 🔄 **Automatic Deployment**: Push to main triggers infrastructure + app deployment
-- 📦 **Shared Container Registry**: Both apps use the same ACR
-- 🏷️ **Version Control**: Automatic semantic versioning on each deployment
-
-## 🚀 Features
-
-- **Image Question Answering**: Upload images and ask questions about them
-- **Modern React UI**: Clean, responsive interface built with React + TypeScript
-- **Multimodal AI**: Powered by Azure OpenAI vision models (GPT-4 Vision / Phi-4)
-- **Full Observability**: Request tracing and token usage tracking with Langfuse
-- **Production Ready**: Deployed on Azure App Service with auto-scaling
-- **Automated CI/CD**: GitHub Actions handles infrastructure + deployment
-- **Infrastructure as Code**: Terraform manages all Azure resources
-- **Dynamic Configuration**: CORS and API URLs configured automatically via CI/CD
-
-## 📋 Prerequisites
-
-- Python 3.13+
-- [uv](https://github.com/astral-sh/uv) (Fast Python package manager)
-- Docker (for local development)
-- Azure CLI (for deployment)
-- Terraform 1.9+ (for infrastructure)
-
-## 🔧 Local Development
-
-### 1. Clone the repository
-
-```bash
-git clone <your-repo-url>
-cd lego-case
-```
-
-### 2. Create `.env` file
-
-```bash
-cp .env.example .env
-# Edit .env with your credentials
-```
-
-Required environment variables:
-```env
-OPENAI_API_KEY=your_azure_openai_key
-LANGFUSE_SECRET_KEY=your_langfuse_secret
-LANGFUSE_PUBLIC_KEY=your_langfuse_public
-LANGFUSE_BASE_URL=http://langfuse.legocase.com
-```
-
-### 3. Run locally with Python
-
-```bash
-# Install dependencies
-uv pip install -r pyproject.toml
-
-# Run the app
-cd backend
-uvicorn app:app --reload
-```
-
-### 4. Run with Docker
-
-```bash
-cd backend
-docker build -t question-answer-api .
-docker run -p 8000:8000 --env-file ../.env question-answer-api
-```
-
-### 5. Test the API
-
-```bash
-# Health check
-curl http://localhost:8000/health
-
-# Ask a question
-curl -X POST http://localhost:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is the capital of France?"}'
-```
-
-## ☁️ Deployment
-
-### Infrastructure Setup (One-time)
-
-#### 1. Setup Remote Backend (Recommended)
-
-```bash
-cd terraform
-
-# Create Azure Storage for Terraform state
-./setup-backend.sh
-
-# This creates storage and outputs configuration
-# Save the values for later use
-```
-
-**Why?** Terraform state files can be 100MB+ and should never be in Git. See [Backend Guide](terraform/BACKEND.md).
-
-#### 2. Configure and Apply Infrastructure
-
-```bash
-# Create terraform.tfvars from .env
-./setup-vars.sh
-
-# Initialize Terraform with remote backend
-terraform init -backend-config=backend-config.tfbackend
-
-# Preview changes
-terraform plan
-
-# Apply infrastructure
-terraform apply
-```
-
-This creates:
-- Azure Container Registry
-- Azure Container Apps Environment
-- Container App with auto-scaling
-- Log Analytics workspace
-
-### Application Deployment
-
-#### Option 1: Full Stack Deployment (Recommended)
-
-Deploy both frontend and backend at once:
-
-```bash
-./deploy-all.sh
-```
-
-This script:
-1. Builds and pushes both Docker images to ACR
-2. Updates both web apps with new images
-3. Configures CORS (backend) and API URL (frontend)
-4. Performs health checks
-5. Auto-increments version numbers
-
-#### Option 2: Individual Deployment
-
-Deploy services separately:
-
-```bash
-# Backend only
-cd backend && ./deploy.sh
-
-# Frontend only
-cd frontend && ./deploy.sh
-```
-
-**Note**: You'll need to manually configure CORS and API URLs if deploying individually.
-
-#### Option 3: Automated CI/CD (Recommended for Production)
-
-Push to `main` branch triggers automatic deployment:
-
-```bash
-git add .
-git commit -m "feat: add new feature"
-git push origin main
-```
-
-The CI/CD pipeline will:
-1. ✅ Deploy infrastructure changes (if any)
-2. ✅ Build and deploy backend (if changed)
-3. ✅ Build and deploy frontend (if changed)
-4. ✅ Configure cross-app environment variables:
-   - Backend: `CORS_ORIGINS=https://frontend-url`
-   - Frontend: `VITE_API_URL=https://backend-url`
-5. ✅ Run health checks on both apps
-
-## 🔄 CI/CD Pipeline
-
-The deployment pipeline automatically handles the complete stack:
-
-### Pipeline Stages
-
-```
-Infrastructure → Backend → Frontend → Configure Apps
-     ↓              ↓          ↓            ↓
-   Terraform    Build API   Build UI    Link Apps
-   (if changed)  (if changed) (if changed) (CORS + URL)
-```
-
-### What Gets Deployed When
-
-- **`terraform/**` changes**: Updates infrastructure (registry, app services, etc.)
-- **`backend/**` changes**: Builds new backend image, deploys, restarts
-- **`frontend/**` changes**: Builds new frontend image, deploys, restarts
-- **Any change**: Re-configures CORS and API URLs to link apps
-
-### GitHub Actions Workflow
-
-See `.github/workflows/deploy-main.yml` for the complete workflow.
-
-**Required GitHub Secrets:**
-- `AZURE_CREDENTIALS`: Service principal for Azure login
-- `TF_BACKEND_*`: Terraform backend configuration
-- `OPENAI_API_KEY`: Azure OpenAI API key
-- `LANGFUSE_*`: Langfuse configuration
-
-## 📁 Project Structure
+## 🏗️ Project Structure
 
 ```
 lego-case/
-├── frontend/                   # React application
-│   ├── src/
-│   │   ├── components/        # React components
-│   │   ├── hooks/             # Custom hooks
-│   │   ├── types/             # TypeScript types
-│   │   ├── App.tsx            # Main app component
-│   │   └── config.ts          # API configuration
-│   ├── Dockerfile             # Frontend container
-│   ├── deploy.sh              # Frontend deploy script
-│   ├── package.json           # Node dependencies
-│   └── version.txt            # Current version
-├── backend/                    # FastAPI application
+├── backend/                      # FastAPI backend application
+│   ├── app.py                   # Main FastAPI application entry point
+│   ├── config.py                # Configuration and environment management
+│   ├── schemas.py               # Pydantic models for request/response validation
+│   ├── prompts.py               # System prompts for different AI agents
 │   ├── routers/
-│   │   ├── chat.py            # Text Q&A endpoint
-│   │   └── multimodal.py      # Image Q&A endpoint
-│   ├── app.py                 # Main application code
-│   ├── config.py              # Settings & env vars
-│   ├── Dockerfile             # Backend container
-│   ├── deploy.sh              # Backend deploy script
-│   ├── pyproject.toml         # Python dependencies
-│   └── version.txt            # Current version
-├── terraform/                  # Infrastructure as Code
-│   ├── main.tf                # Azure resources
-│   ├── variables.tf           # Input variables
-│   ├── outputs.tf             # Output values
-│   └── setup-vars.sh          # Env to tfvars helper
-├── .github/
-│   └── workflows/             # CI/CD pipelines
-│       └── deploy-main.yml    # Main deployment pipeline
-├── deploy-all.sh              # Deploy full stack locally
-├── .gitignore                 # Git ignore rules
-└── README.md                  # This file
+│   │   ├── router.py           # Intelligent query routing logic
+│   │   ├── multimodal.py       # Multimodal (image + text) processing
+│   │   └── chat.py             # Simple chat endpoint
+│   ├── tests/                  # Comprehensive test suite
+│   │   ├── test_router.py      # Router logic tests
+│   │   ├── test_multimodal.py  # Multimodal endpoint tests
+│   │   └── conftest.py         # Pytest fixtures and configuration
+│   ├── pyproject.toml          # Python dependencies (uv/pip)
+│   └── Dockerfile              # Backend containerization
+│
+├── frontend/                    # React + TypeScript UI
+│   ├── src/
+│   │   ├── App.tsx             # Main application component
+│   │   ├── components/         # Reusable UI components
+│   │   │   ├── ChatArea.tsx    # Message display component
+│   │   │   └── InputArea.tsx   # User input with image upload
+│   │   ├── hooks/              # Custom React hooks
+│   │   │   └── useImageQuestion.ts  # API communication logic
+│   │   └── types/              # TypeScript type definitions
+│   ├── package.json            # Node dependencies
+│   └── Dockerfile              # Frontend containerization
+│
+├── docs/                        # GitHub Pages documentation site
+│   ├── index.md                # Landing page
+│   ├── architecture.md         # System architecture details
+│   ├── functional-requirements.md
+│   ├── non-functional-requirements.md
+│   └── assets/                 # Images and diagrams
+│
+├── terraform/                   # Infrastructure as Code (Azure)
+│   ├── main.tf                 # Main Terraform configuration
+│   ├── variables.tf            # Input variables
+│   ├── outputs.tf              # Output values
+│   └── providers.tf            # Provider configurations
+│
+└── langfuse-on-azure/          # Observability and tracing setup
+    ├── infra/                  # Bicep templates for Azure deployment
+    └── scripts/                # Deployment automation scripts
 ```
 
-## 🔒 Security
+## 🧠 How It Works
 
-- ✅ Environment variables stored in GitHub Secrets
-- ✅ `.env` files excluded from Git (never committed)
-- ✅ `.terraform` directory excluded from version control
-- ✅ Terraform state stored in Azure backend
-- ✅ Manual approval required for infrastructure changes
-- ✅ Secrets injected at runtime (not baked into images)
+1. **User Input**: User submits a question (with optional image) via the React frontend
+2. **Router Agent**: Analyzes the query using GPT-4o-mini to determine complexity
+3. **Agent Selection**:
+   - Simple queries → GPT-4o-mini (fast, cost-effective)
+   - Complex/multimodal queries → GPT-4o (advanced reasoning)
+4. **Processing**: Selected agent processes the request with appropriate context
+5. **Response**: Answer returned to user with full tracing in Langfuse
+6. **Observability**: All interactions logged for monitoring, debugging, and optimization
 
-## 📊 Monitoring
+## 🚀 Quick Start
 
-### Application Logs
+### Prerequisites
+- Python 3.12+ and `uv` package manager
+- Node.js 18+ and npm
+- OpenAI API key
+- (Optional) Langfuse account for observability
+
+### Backend Setup
+
 ```bash
-# View logs in Azure
-az containerapp logs show \
-  --name <app-name> \
-  --resource-group rg-case \
-  --follow
+cd backend
+uv sync                    # Install dependencies with uv
+uv run uvicorn app:app --reload  # Run development server
 ```
 
-### Langfuse Dashboard
-Visit your Langfuse URL to see:
-- Request traces
-- Token usage
-- Response times
-- Error rates
+The API will be available at:
+- **API**: `http://localhost:8000`
+- **Interactive Docs**: `http://localhost:8000/docs`
+- **OpenAPI Schema**: `http://localhost:8000/openapi.json`
 
-### Azure Portal
-- Container Apps metrics
-- Auto-scaling events
-- Health probe status
+### Frontend Setup
+
+```bash
+cd frontend
+npm install               # Install dependencies
+npm run dev              # Run development server
+```
+
+The UI will be available at `http://localhost:5173`
+
+### Environment Variables
+
+Create a `.env` file in the `backend/` directory:
+
+```bash
+# Required
+OPENAI_API_KEY=your_key_here
+
+# Optional (for LLMOps observability)
+LANGFUSE_SECRET_KEY=your_key_here
+LANGFUSE_PUBLIC_KEY=your_key_here
+LANGFUSE_BASE_URL=your_url_here
+
+# Optional (Azure OpenAI alternative)
+AZURE_OPENAI_API_KEY=your_key_here
+AZURE_OPENAI_ENDPOINT=your_endpoint_here
+```
 
 ## 🧪 Testing
 
 ```bash
-# Run tests (if applicable)
-pytest
-
-# Check API health
-curl https://<your-app-url>.azurecontainerapps.io/health
+cd backend
+uv run pytest -v         # Verbose output
+uv run pytest tests/test_router.py  # Test routing logic
+uv run pytest tests/test_multimodal.py  # Test multimodal endpoint
 ```
 
-## 🐛 Troubleshooting
+## 📡 API Endpoints
 
-### Local Development Issues
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Health check |
+| `/chat` | POST | Simple text chat (no routing) |
+| `/multimodal` | POST | Multimodal query with intelligent routing |
+| `/docs` | GET | Interactive API documentation (Swagger UI) |
 
-**Port already in use:**
-```bash
-lsof -ti:8000 | xargs kill -9
+Example multimodal request:
+```json
+{
+  "prompt": "What's in this image?",
+  "image": "base64_encoded_image_string"
+}
 ```
 
-**Dependencies not installing:**
-```bash
-uv pip install --upgrade pip
-uv pip install -r backend/pyproject.toml
-```
+## 🐳 Docker Deployment
 
-### Deployment Issues
+Both backend and frontend include `Dockerfile` and `deploy.sh` scripts for containerized deployment.
 
-**Can't push to GitHub (large files):**
-- Ensure `.gitignore` excludes `.terraform/` and `__pycache__/`
-- Run: `git rm -r --cached terraform/.terraform`
+## Key Features
 
-**Azure login fails:**
-```bash
-az login
-az account set --subscription <your-subscription-id>
-```
+### Multi-Agent Architecture
+- **Intelligent Router Agent**: Analyzes query complexity and selects optimal model
+- **Simple Query Agent**: Uses GPT-4o-mini for straightforward questions (cost-effective)
+- **Complex Query Agent**: Leverages GPT-4o for advanced reasoning and multimodal tasks
 
-**Container app not updating:**
-```bash
-# Force new revision
-az containerapp update --name <app-name> --resource-group rg-case --revision-suffix $(date +%s)
-```
+### Multimodal Capabilities
+- **Image + Text Processing**: Upload images with questions for visual understanding
+- **Flexible Input**: Supports text-only queries or combined image-text queries
+- **Base64 Image Encoding**: Efficient image transmission to AI models
 
-## 📚 Additional Resources
+### LLMOps & Observability
+- **Langfuse Integration**: Full request/response tracing and monitoring
+- **Performance Metrics**: Track latency, token usage, and costs per query
+- **Debug Mode**: Detailed logging for development and troubleshooting
+- **A/B Testing Ready**: Infrastructure supports model comparison and experimentation
 
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Azure Container Apps Docs](https://learn.microsoft.com/en-us/azure/container-apps/)
-- [Langfuse Documentation](https://langfuse.com/docs)
-- [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
+### Production-Ready
+- **FastAPI Backend**: Async, high-performance API with automatic OpenAPI docs
+- **Type Safety**: Pydantic schemas and TypeScript for end-to-end type checking
+- **Comprehensive Testing**: Unit and integration tests with pytest
+- **Container-Ready**: Docker support for both frontend and backend
+- **Cloud Native**: Terraform IaC for Azure Container Apps deployment
 
-## 🤝 Contributing
+## 🛠️ Tech Stack
 
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make changes and test locally
-3. Commit with clear messages: `git commit -m "feat: add new feature"`
-4. Push and create PR: `git push origin feature/your-feature`
-5. Wait for CI checks to pass
-6. Request review and merge
+**Backend**
+- FastAPI (Python 3.12+)
+- OpenAI Python SDK (GPT-4o, GPT-4o-mini)
+- Langfuse (observability)
+- Pydantic (data validation)
+- pytest (testing)
 
-## 📝 License
+**Frontend**
+- React 18
+- TypeScript
+- Vite (build tool)
+- Modern CSS with responsive design
 
-[Add your license here]
+**Infrastructure**
+- Azure Container Apps
+- Azure Container Registry
+- Terraform (IaC)
+- PostgreSQL (for Langfuse)
 
-## 👤 Author
-
-[Add your information here]
+**Development Tools**
+- uv (fast Python package manager)
+- ESLint + TypeScript
+- Docker & Docker Compose
 
 ---
 
-**Note**: This is a case study project demonstrating modern cloud-native application development with CI/CD best practices.
-
+For more details, see the [complete documentation](https://manu2022.github.io/lego-case/).
