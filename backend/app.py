@@ -23,7 +23,8 @@ async def lifespan(app: FastAPI):
     logger.info("Starting FastAPI application")
     logger.info(f"Langfuse host: {settings.langfuse_base_url}")
     logger.info("Configuration loaded successfully")
-    logger.info("Models: gpt-5-mini, Phi-4-multimodal-instruct")
+    logger.info(f"Chat Model: {settings.chat_model_name}")
+    logger.info(f"Multimodal Model: {settings.multimodal_model_name}")
     yield
     # Shutdown
     logger.info("Flushing Langfuse events")

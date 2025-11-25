@@ -13,11 +13,9 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 azure_client = AzureOpenAI(
     api_key=settings.openai_api_key,
-    api_version="2024-02-01",
-    azure_endpoint="https://foundry-service-lego.openai.azure.com"
+    api_version=settings.azure_openai_api_version,
+    azure_endpoint=settings.azure_openai_endpoint
 )
-
-deployment_name = "gpt-5-mini"
 
 
 @observe()
@@ -29,10 +27,10 @@ def ask_question(question: str) -> str:
         {"role": "user", "content": question}
     ]
     
-    logger.info(f"Starting LLM call. Question: {question[:50]}...")
+    logger.info(f"Starting LLM call with {settings.chat_model_name}. Question: {question[:50]}...")
     
     completion = azure_client.chat.completions.create(
-        model=deployment_name,
+        model=settings.chat_model_name,
         messages=messages
     )
     

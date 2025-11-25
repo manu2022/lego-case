@@ -28,9 +28,9 @@ router = APIRouter(prefix="/multimodal", tags=["multimodal"])
 
 # Initialize Azure AI Inference client for multimodal
 client = ChatCompletionsClient(
-    endpoint="https://foundry-service-lego.cognitiveservices.azure.com/models",
+    endpoint=settings.azure_ai_foundry_endpoint,
     credential=AzureKeyCredential(settings.openai_api_key),
-    model="Phi-4-multimodal-instruct"
+    model=settings.multimodal_model_name
 )
 
 # Initialize Langfuse client
@@ -94,12 +94,12 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
     
     trace = langfuse.trace(
         name="multimodal_question",
-        metadata={"model": "Phi-4-multimodal-instruct"}
+        metadata={"model": settings.multimodal_model_name}
     )
     
     data_url = ImageUrl(url=f"data:image/{image_format};base64,{image_data}")
     
-    logger.info(f"Starting multimodal LLM call. Question: {question[:50]}...")
+    logger.info(f"Starting multimodal LLM call with {settings.multimodal_model_name}. Question: {question[:50]}...")
     start_time = datetime.now()
     
     response = client.complete(
@@ -122,8 +122,8 @@ def ask_multimodal_question(question: str, image_data: str, image_format: str) -
     }
     
     langfuse.generation(
-        name="phi4_multimodal_completion",
-        model="Phi-4-multimodal-instruct",
+        name="multimodal_completion",
+        model=settings.multimodal_model_name,
         model_parameters={},
         input=[
             {"role": "system", "content": MULTIMODAL_SYSTEM_PROMPT},
