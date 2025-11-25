@@ -56,17 +56,6 @@ lego-case/
     └── scripts/                # Deployment automation scripts
 ```
 
-## 🧠 How It Works
-
-1. **User Input**: User submits a question (with optional image) via the React frontend
-2. **Router Agent**: Analyzes the query using GPT-4o-mini to determine complexity
-3. **Agent Selection**:
-   - Simple queries → GPT-4o-mini (fast, cost-effective)
-   - Complex/multimodal queries → GPT-4o (advanced reasoning)
-4. **Processing**: Selected agent processes the request with appropriate context
-5. **Response**: Answer returned to user with full tracing in Langfuse
-6. **Observability**: All interactions logged for monitoring, debugging, and optimization
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -86,7 +75,6 @@ uv run uvicorn app:app --reload  # Run development server
 The API will be available at:
 - **API**: `http://localhost:8000`
 - **Interactive Docs**: `http://localhost:8000/docs`
-- **OpenAPI Schema**: `http://localhost:8000/openapi.json`
 
 ### Frontend Setup
 
@@ -110,10 +98,6 @@ OPENAI_API_KEY=your_key_here
 LANGFUSE_SECRET_KEY=your_key_here
 LANGFUSE_PUBLIC_KEY=your_key_here
 LANGFUSE_BASE_URL=your_url_here
-
-# Optional (Azure OpenAI alternative)
-AZURE_OPENAI_API_KEY=your_key_here
-AZURE_OPENAI_ENDPOINT=your_endpoint_here
 ```
 
 ## 🧪 Testing
@@ -129,12 +113,14 @@ uv run pytest tests/test_multimodal.py  # Test multimodal endpoint
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | Health check |
-| `/chat` | POST | Simple text chat (no routing) |
-| `/multimodal` | POST | Multimodal query with intelligent routing |
+| `/` | GET | Root endpoint with API info |
+| `/health` | GET | Health check |
+| `/router/ask` | POST | Main endpoint with intelligent routing and PII redaction |
+| `/chat/ask` | POST | Direct text chat (no routing) |
+| `/multimodal/ask-with-image` | POST | Direct multimodal endpoint (no routing) |
 | `/docs` | GET | Interactive API documentation (Swagger UI) |
 
-Example multimodal request:
+Example request for `/router/ask`:
 ```json
 {
   "prompt": "What's in this image?",
@@ -170,32 +156,6 @@ Both backend and frontend include `Dockerfile` and `deploy.sh` scripts for conta
 - **Comprehensive Testing**: Unit and integration tests with pytest
 - **Container-Ready**: Docker support for both frontend and backend
 - **Cloud Native**: Terraform IaC for Azure Container Apps deployment
-
-## 🛠️ Tech Stack
-
-**Backend**
-- FastAPI (Python 3.12+)
-- OpenAI Python SDK (GPT-4o, GPT-4o-mini)
-- Langfuse (observability)
-- Pydantic (data validation)
-- pytest (testing)
-
-**Frontend**
-- React 18
-- TypeScript
-- Vite (build tool)
-- Modern CSS with responsive design
-
-**Infrastructure**
-- Azure Container Apps
-- Azure Container Registry
-- Terraform (IaC)
-- PostgreSQL (for Langfuse)
-
-**Development Tools**
-- uv (fast Python package manager)
-- ESLint + TypeScript
-- Docker & Docker Compose
 
 ---
 
