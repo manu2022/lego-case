@@ -6,7 +6,7 @@ An intelligent multimodal question-answering system that routes queries to speci
 
 For detailed architecture, requirements, and design decisions, visit our [GitHub Pages Documentation](https://manu2022.github.io/lego-case/).
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 lego-case/
@@ -57,12 +57,6 @@ lego-case/
 ```
 
 ## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.12+ and `uv` package manager
-- Node.js 18+ and npm
-- Azure Cloud subcription
-- Langfuse account for observability
 
 ### Backend Setup
 
@@ -121,31 +115,6 @@ uv run pytest tests/test_multimodal.py  # Test multimodal endpoint
 | `/docs` | GET | Interactive API documentation (Swagger UI) |
 
 
-
-## 🐳 Docker Deployment
-
-Both backend and frontend include `Dockerfile` and `deploy.sh` scripts for containerized deployment to azure.
-
-## Key Features
-
-### Multi-Agent Architecture with Intelligent Router Agent**: Analyzes query complexity and selects optimal agent
-
-### Multimodal Capabilities
-- **Image + Text Processing**: Upload images with questions for visual understanding
-- **Flexible Input**: Supports text-only queries or combined image-text queries or oother types as pdf
-- **Base64 Image Encoding**: Efficient image transmission to AI models
-
-### LLMOps & Observability
-- **Langfuse Integration**: Full request/response tracing and monitoring
-- **Performance Metrics**: Track latency, token usage, and costs per query
-- **A/B Testing Ready**: Infrastructure supports model comparison and experimentation
-
-### Production-Ready
-- **FastAPI Backend**: Async, high-performance API with automatic OpenAPI docs
-- **Type Safety**: Pydantic schemas and TypeScript for end-to-end type checking
-- **Comprehensive Testing**: Unit and integration tests with pytest
-- **Container-Ready**: Docker support for both frontend and backend
-- **Cloud Native**: Terraform IaC for Azure Container Apps deployment
 
 ---
 
