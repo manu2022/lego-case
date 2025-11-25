@@ -43,13 +43,12 @@ Build low-fidelity versions (feasibility, user, live-data, or hybrid prototypes)
 ### Testing
 Validate all four risks through fake door tests, qualitative interviews, A/B tests, and stakeholder reviews
 
-![Inspired Book](assets/inspired_book.jpg)
-
-The information has been inspired by this book
+<div align="center">
+  <img src="assets/inspired_book.jpg" alt="Inspired Book" style="max-width: 600px; width: 100%;">
+  <p><em>The information has been inspired by this book</em></p>
+</div>
 
 ---
-
-## Project Delivery Milestones
 
 # Agile Hierarchy for LLM Chatbot Project
 
