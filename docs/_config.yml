@@ -2,3 +2,9 @@ theme: jekyll-theme-cayman
 title: LEGO Case Documentation
 description: Architecture and Requirements Documentation
 
+# Markdown processor
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+

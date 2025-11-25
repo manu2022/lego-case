@@ -1,0 +1,24 @@
+/* Custom styles for Mermaid diagrams */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0;
+  background-color: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+/* Ensure diagrams are responsive */
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Style for the diagram container */
+pre.mermaid {
+  background-color: transparent;
+  border: none;
+  padding: 0;
+}
+
