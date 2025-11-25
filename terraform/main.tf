@@ -72,6 +72,11 @@ resource "azurerm_linux_web_app" "app" {
     CORS_ORIGINS        = "*"  # Will be updated by CI/CD to specific frontend URL
   }
   
+  # Disable authentication (API requires custom auth if needed)
+  auth_settings_v2 {
+    auth_enabled = false
+  }
+  
   # Prevent unnecessary redeployments
   lifecycle {
     ignore_changes = [
@@ -123,6 +128,11 @@ resource "azurerm_linux_web_app" "frontend" {
     
     # Application environment variables
     # VITE_API_URL will be set by CI/CD after backend is deployed
+  }
+  
+  # Disable authentication (public frontend)
+  auth_settings_v2 {
+    auth_enabled = false
   }
   
   # Prevent unnecessary redeployments
