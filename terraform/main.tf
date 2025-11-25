@@ -66,6 +66,7 @@ resource "azurerm_linux_web_app" "app" {
     
     # Application environment variables
     OPENAI_API_KEY      = var.openai_api_key
+    CLAUDE_API_KEY      = var.claude_api_key
     LANGFUSE_SECRET_KEY = var.langfuse_secret_key
     LANGFUSE_PUBLIC_KEY = var.langfuse_public_key
     LANGFUSE_BASE_URL   = var.langfuse_base_url
