@@ -47,8 +47,8 @@ class RouterResponse(BaseModel):
 
 class FinalResponse(BaseModel):
     """Final response to user"""
-    answer: str
-    agent_used: str
+    sanitized_query: str
+    agent: str
 
 
 @observe()
@@ -93,16 +93,17 @@ async def route_query(
     image: Optional[UploadFile] = File(default=None)
 ):
     """
-    Single endpoint for all queries - with or without images
+    Single endpoint for query classification and PII redaction
     
     - Classifies query intent (based on text only)
     - Removes PII from query
-    - Routes based on: agent classification + image presence
+    - Determines agent based on classification + image presence:
+      * irrelevant → irrelevant
       * Text only → qa_agent
       * Text + image → multimodal_agent
-    - Returns answer or irrelevant message
+    - Returns sanitized query and selected agent
     
-    Note: Image is NOT sent to router - only used for routing decision
+    Note: This endpoint does NOT execute the query, only classifies and sanitizes it
     """
     
     # Handle empty file uploads from forms (FastAPI/Swagger sends empty string)
@@ -124,62 +125,21 @@ async def route_query(
         print(f"   Agent: {classification.agent}")
         print(f"   Sanitized query: {classification.query}")
         
-        # Step 2: Check if irrelevant
+        # Step 2: Determine agent based on classification and image presence
         if classification.agent == "irrelevant":
             print("🚫 Query classified as irrelevant")
-            return FinalResponse(
-                answer="Sorry, I cannot assist with that query. Please ask work-related questions.",
-                agent_used="irrelevant"
-            )
-        
-        # Step 3: Route to appropriate agent
-        if has_image:
-            # Route to multimodal agent
-            print("✅ Routing to Multimodal agent")
-            
-            from routers.multimodal import ask_multimodal_question
-            
-            # Read and encode image
-            image_bytes = await image.read()
-            image_data = base64.b64encode(image_bytes).decode("utf-8")
-            
-            # Detect format
-            image_format = "png"
-            if image.content_type:
-                if "jpeg" in image.content_type or "jpg" in image.content_type:
-                    image_format = "jpeg"
-                elif "png" in image.content_type:
-                    image_format = "png"
-                elif "gif" in image.content_type:
-                    image_format = "gif"
-                elif "webp" in image.content_type:
-                    image_format = "webp"
-            
-            # Call multimodal
-            answer, usage = ask_multimodal_question(
-                classification.query,
-                image_data,
-                image_format
-            )
-            
-            print(f"   Token usage: {usage['input']}/{usage['output']}/{usage['total']}")
-            
-            return FinalResponse(
-                answer=answer,
-                agent_used="multimodal_agent"
-            )
+            selected_agent = "irrelevant"
+        elif has_image:
+            print("✅ Selected agent: multimodal_agent (image attached)")
+            selected_agent = "multimodal_agent"
         else:
-            # Route to text agent
-            print("✅ Routing to QA agent")
-            
-            from routers.chat import ask_question
-            
-            answer = ask_question(classification.query)
-            
-            return FinalResponse(
-                answer=answer,
-                agent_used="qa_agent"
-            )
+            print("✅ Selected agent: qa_agent (text only)")
+            selected_agent = "qa_agent"
+        
+        return FinalResponse(
+            sanitized_query=classification.query,
+            agent=selected_agent
+        )
             
     except HTTPException:
         raise
