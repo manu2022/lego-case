@@ -63,7 +63,7 @@ export const InputArea = ({
 
         <input
           type="text"
-          placeholder="Ask a question about your image..."
+          placeholder="Ask a question (with or without image)..."
           value={question}
           onChange={(e) => onQuestionChange(e.target.value)}
           disabled={loading}
@@ -72,7 +72,7 @@ export const InputArea = ({
 
         <button 
           type="submit" 
-          disabled={loading || !hasImage || !question.trim()}
+          disabled={loading || !question.trim()}
           className="send-btn"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
