@@ -13,11 +13,20 @@ export const useImageQuestion = () => {
   const handleImageChange = (file: File | null) => {
     if (file) {
       setImage(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string)
+      
+      // Only create preview for images, not PDFs
+      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+      
+      if (!isPDF) {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string)
+        }
+        reader.readAsDataURL(file)
+      } else {
+        setImagePreview('') // No preview for PDF
       }
-      reader.readAsDataURL(file)
+      
       setError('')
     }
   }
@@ -29,7 +38,7 @@ export const useImageQuestion = () => {
 
   const submitQuestion = async () => {
     if (!image || !question.trim()) {
-      setError('Please select an image and enter a question')
+      setError('Please select an image or PDF and enter a question')
       return
     }
 
@@ -72,6 +81,7 @@ export const useImageQuestion = () => {
     response,
     loading,
     error,
+    fileName: image?.name,
     setQuestion,
     handleImageChange,
     removeImage,

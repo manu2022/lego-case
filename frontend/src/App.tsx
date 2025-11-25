@@ -10,6 +10,7 @@ function App() {
     response,
     loading,
     error,
+    fileName,
     setQuestion,
     handleImageChange,
     removeImage,
@@ -29,6 +30,7 @@ function App() {
         question={question}
         loading={loading}
         hasImage={!!image}
+        fileName={fileName}
         onImageChange={handleImageChange}
         onRemoveImage={removeImage}
         onQuestionChange={setQuestion}
