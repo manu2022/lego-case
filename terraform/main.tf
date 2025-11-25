@@ -72,19 +72,11 @@ resource "azurerm_linux_web_app" "app" {
     CORS_ORIGINS        = "*"  # Will be updated by CI/CD to specific frontend URL
   }
   
-  # Disable authentication (API requires custom auth if needed)
-  auth_settings_v2 {
-    auth_enabled = false
-    
-    login {
-      token_store_enabled = false
-    }
-  }
-  
-  # Prevent unnecessary redeployments
+  # Prevent unnecessary redeployments and ignore auth settings managed by Azure
   lifecycle {
     ignore_changes = [
-      site_config[0].application_stack[0].docker_image_name
+      site_config[0].application_stack[0].docker_image_name,
+      auth_settings_v2
     ]
   }
 }
@@ -134,19 +126,11 @@ resource "azurerm_linux_web_app" "frontend" {
     # VITE_API_URL will be set by CI/CD after backend is deployed
   }
   
-  # Disable authentication (public frontend)
-  auth_settings_v2 {
-    auth_enabled = false
-    
-    login {
-      token_store_enabled = false
-    }
-  }
-  
-  # Prevent unnecessary redeployments
+  # Prevent unnecessary redeployments and ignore auth settings managed by Azure
   lifecycle {
     ignore_changes = [
-      site_config[0].application_stack[0].docker_image_name
+      site_config[0].application_stack[0].docker_image_name,
+      auth_settings_v2
     ]
   }
 }
