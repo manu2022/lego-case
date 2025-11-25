@@ -5,6 +5,7 @@ interface InputAreaProps {
   question: string
   loading: boolean
   hasImage: boolean
+  fileName?: string
   onImageChange: (file: File | null) => void
   onRemoveImage: () => void
   onQuestionChange: (value: string) => void
@@ -16,6 +17,7 @@ export const InputArea = ({
   question,
   loading,
   hasImage,
+  fileName,
   onImageChange,
   onRemoveImage,
   onQuestionChange,
@@ -31,11 +33,25 @@ export const InputArea = ({
     onImageChange(file || null)
   }
 
+  const isPDF = fileName?.toLowerCase().endsWith('.pdf')
+
   return (
     <form onSubmit={handleSubmit} className="input-area">
-      {imagePreview && (
+      {(imagePreview || isPDF) && (
         <div className="image-thumb">
-          <img src={imagePreview} alt="Uploaded" />
+          {isPDF ? (
+            <div className="pdf-preview">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              <p>{fileName}</p>
+            </div>
+          ) : (
+            <img src={imagePreview} alt="Uploaded" />
+          )}
           <button 
             type="button" 
             className="remove-image"
@@ -50,12 +66,12 @@ export const InputArea = ({
         <input
           id="image-upload"
           type="file"
-          accept="image/*"
+          accept="image/*,application/pdf"
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
         
-        <label htmlFor="image-upload" className="attach-btn" title="Attach image">
+        <label htmlFor="image-upload" className="attach-btn" title="Attach image or PDF">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
           </svg>
