@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Home
+title: PeaceCorpGPT - Multimodal Multiagent Chatbot with LLMOps
 ---
 
 ## 📚 Documentation Pages
