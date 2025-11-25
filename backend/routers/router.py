@@ -90,7 +90,7 @@ def classify_and_sanitize(query: str) -> RouterResponse:
 @observe()
 async def route_query(
     question: str = Form(..., description="Your question"),
-    image: Optional[UploadFile] = File(None)
+    image: Optional[UploadFile] = File(default=None)
 ):
     """
     Single endpoint for all queries - with or without images
@@ -105,11 +105,15 @@ async def route_query(
     Note: Image is NOT sent to router - only used for routing decision
     """
     
-    has_image = image is not None
+    # Handle empty file uploads from forms (FastAPI/Swagger sends empty string)
+    has_image = image is not None and image.filename
+    
     print(f"\n{'='*80}")
     print(f"📥 New routing request: {question[:50]}...")
     if has_image:
         print(f"📎 File attached: {image.filename}")
+    else:
+        print("📝 Text only query")
     print(f"{'='*80}\n")
     
     try:
