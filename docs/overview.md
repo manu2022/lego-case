@@ -1,9 +1,9 @@
 ---
 layout: default
-title: Overview
+title: Introduction and Feasibility
 ---
 
-# Overview
+# Introduction and Feasibility
 
 [Back to Home](index.md)
 
@@ -44,7 +44,7 @@ Build low-fidelity versions (feasibility, user, live-data, or hybrid prototypes)
 Validate all four risks through fake door tests, qualitative interviews, A/B tests, and stakeholder reviews
 
 <div align="center">
-  <img src="assets/inspired_book.jpg" alt="Inspired Book" style="max-width: 600px; width: 100%;">
+  <img src="assets/inspired_book.jpg" alt="Inspired Book" style="max-width: 400px; width: 100%;">
   <p><em>The information has been inspired by this book</em></p>
 </div>
 

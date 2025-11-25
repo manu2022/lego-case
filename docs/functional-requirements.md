@@ -7,9 +7,6 @@ title: Functional Requirements
 
 [Back to Home](index.md)
 
-# System Requirements: Internal LLM-Powered Chatbot
-## Peace Corp Employee AI Assistant
-
 ---
 # System Requirements: Internal LLM-Powered Chatbot
 

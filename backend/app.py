@@ -2,17 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from langfuse.decorators import langfuse_context
-import logging
-
 from config import settings
 from routers import chat, multimodal, router
+import logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
 logger = logging.getLogger(__name__)
 
 
@@ -20,14 +13,15 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for cleanup"""
     # Startup
-    logger.info("Starting FastAPI application")
+    logger.info("=" * 80)
+    logger.info("Starting FastAPI application...")
     logger.info(f"Langfuse host: {settings.langfuse_base_url}")
     logger.info("Configuration loaded successfully")
-    logger.info(f"Chat Model: {settings.chat_model_name}")
-    logger.info(f"Multimodal Model: {settings.multimodal_model_name}")
+    logger.info(f"Models: gpt-5-mini, Phi-4-multimodal-instruct")
+    logger.info("=" * 80)
     yield
-    # Shutdown
-    logger.info("Flushing Langfuse events")
+    # Shutdown: Flush Langfuse events
+    logger.info("Flushing Langfuse events...")
     langfuse_context.flush()
     logger.info("Shutdown complete")
 
@@ -41,6 +35,7 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+# Parse CORS origins from settings (comma-separated string to list)
 cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 logger.info(f"CORS enabled for origins: {cors_origins}")
 

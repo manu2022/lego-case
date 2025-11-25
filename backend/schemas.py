@@ -19,6 +19,8 @@ class MultimodalResponse(BaseModel):
     question: str
     answer: str
     usage: dict
+    file_type: str = Field(default="image", description="Type of file processed (image or pdf)")
+    pages_processed: Optional[int] = Field(default=None, description="Number of pages processed for PDFs")
 
 
 class RouterResponse(BaseModel):
@@ -31,4 +33,5 @@ class FinalResponse(BaseModel):
     """Final response from router to user"""
     sanitized_query: str
     agent: str
+    usage: dict = Field(..., description="Token usage information")
 
