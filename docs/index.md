@@ -8,6 +8,13 @@ An intelligent multimodal question-answering system that routes queries to speci
 
 For detailed architecture, requirements, and design decisions, visit our [GitHub Pages Documentation](https://manu2022.github.io/lego-case/).
 
+### Documentation Pages
+
+- [Overview](./overview.md) - System overview and introduction
+- [Architecture](./architecture.md) - Detailed system architecture and design
+- [Functional Requirements](./functional-requirements.md) - Feature specifications and capabilities
+- [Non-Functional Requirements](./non-functional-requirements.md) - Performance, security, and quality requirements
+
 ## Project Structure
 
 ```
